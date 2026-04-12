@@ -1,0 +1,534 @@
+<script>
+// ============================================================
+// JavaScript.html — Global Client-Side Utilities
+// E-Sarabun DMS | SweetAlert2 + Validation + API helpers
+// ============================================================
+
+// ─── SweetAlert2 Themed Helpers ──────────────────────────────
+const Swal2 = {
+  /** แสดง Toast แจ้งเตือนมุมบนขวา */
+  toast(title, icon = 'success', timer = 3000) {
+    return Swal.fire({
+      toast: true, position: 'top-end',
+      icon, title,
+      showConfirmButton: false,
+      timer,
+      timerProgressBar: true,
+      showClass: { popup: 'animate__animated animate__fadeInRight animate__faster' },
+      didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer);
+        toast.addEventListener('mouseleave', Swal.resumeTimer);
+      },
+      customClass: { popup: 'swal-toast-custom' }
+    });
+  },
+
+  /** แสดง dialog ยืนยันก่อนดำเนินการ */
+  confirm(title, text, confirmText = 'ยืนยัน', icon = 'question') {
+    return Swal.fire({
+      title, text, icon,
+      showCancelButton:    true,
+      confirmButtonText:   confirmText,
+      cancelButtonText:    'ยกเลิก',
+      confirmButtonColor:  '#2563eb',
+      cancelButtonColor:   '#6b7280',
+      borderRadius:        '20px',
+      customClass: {
+        popup:         'swal-popup-custom',
+        confirmButton: 'swal-btn-confirm',
+        cancelButton:  'swal-btn-cancel',
+      }
+    });
+  },
+
+  /** ยืนยันการลบ (destructive) */
+  confirmDelete(name) {
+    return Swal.fire({
+      title: 'ยืนยันการลบ?',
+      html: `ต้องการลบ <strong>${name}</strong> ใช่หรือไม่?<br><small style="color:#6b7280">การดำเนินการนี้ไม่สามารถย้อนกลับได้</small>`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: '🗑 ลบเลย',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+    });
+  },
+
+  /** แสดง input dialog */
+  input(title, label, placeholder = '', type = 'text') {
+    return Swal.fire({
+      title,
+      input: type,
+      inputLabel: label,
+      inputPlaceholder: placeholder,
+      showCancelButton: true,
+      confirmButtonText: 'ตกลง',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#2563eb',
+      inputValidator: (value) => {
+        if (!value || value.trim() === '') return 'กรุณากรอกข้อมูล';
+      }
+    });
+  },
+
+  /** แสดง textarea dialog (สำหรับ remark) */
+  textarea(title, label, placeholder = '') {
+    return Swal.fire({
+      title,
+      input: 'textarea',
+      inputLabel: label,
+      inputPlaceholder: placeholder,
+      inputAttributes: { rows: 4, style: 'font-family: Sarabun, sans-serif; font-size:14px;' },
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยัน',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#2563eb',
+    });
+  },
+
+  /** Loading แบบ fullscreen */
+  loading(title = 'กำลังดำเนินการ...') {
+    Swal.fire({
+      title,
+      allowOutsideClick: false,
+      allowEscapeKey:    false,
+      showConfirmButton: false,
+      didOpen: () => Swal.showLoading()
+    });
+  },
+
+  /** ปิด dialog */
+  close() { Swal.close(); },
+
+  /** แสดง error */
+  error(title, text) {
+    return Swal.fire({ title, text, icon: 'error', confirmButtonColor: '#2563eb' });
+  },
+
+  /** แสดง success */
+  success(title, text) {
+    return Swal.fire({ title, text, icon: 'success', confirmButtonColor: '#2563eb' });
+  }
+};
+
+// ─── Form Validation ─────────────────────────────────────────
+const Validate = {
+  /** ตรวจว่าว่างหรือไม่ */
+  required(value) {
+    return value !== null && value !== undefined && String(value).trim() !== '';
+  },
+
+  /** ตรวจ username */
+  username(value) {
+    return /^[a-zA-Z0-9_]{3,30}$/.test(value);
+  },
+
+  /** ตรวจ password */
+  password(value) {
+    return typeof value === 'string' && value.length >= 8;
+  },
+
+  /** ตรวจเลขเอกสาร pattern เช่น "ฝอก.001/2569" */
+  docNo(value) {
+    return /^[\u0E00-\u0E7F\w]+\.\d{3}\/\d{4}$/.test(value);
+  },
+
+  /**
+   * ตรวจสอบ form element และแสดง error
+   * @param {HTMLElement} input
+   * @param {Function} ruleFn - ฟังก์ชันที่คืน true = valid
+   * @param {string} errorMsg - ข้อความ error
+   * @returns {boolean}
+   */
+  field(input, ruleFn, errorMsg) {
+    const valid = ruleFn(input.value);
+    const errEl = input.closest('.form-group')?.querySelector('.form-error');
+
+    input.classList.toggle('is-invalid', !valid);
+    input.classList.toggle('is-valid', valid);
+
+    if (errEl) {
+      errEl.textContent = errorMsg;
+      errEl.classList.toggle('show', !valid);
+    }
+    return valid;
+  },
+
+  /**
+   * ตรวจสอบ form ทั้งหมด — คืน true ถ้าทุก field ผ่าน
+   * @param {HTMLFormElement} form
+   * @param {Array<{selector, rule, message}>} rules
+   * @returns {boolean}
+   */
+  form(form, rules) {
+    let valid = true;
+    rules.forEach(({ selector, rule, message }) => {
+      const el = form.querySelector(selector);
+      if (el && !this.field(el, rule, message)) valid = false;
+    });
+    return valid;
+  },
+
+  /** ล้าง validation state ทั้ง form */
+  reset(form) {
+    form.querySelectorAll('.form-control').forEach(el => {
+      el.classList.remove('is-valid', 'is-invalid');
+    });
+    form.querySelectorAll('.form-error').forEach(el => {
+      el.classList.remove('show');
+    });
+  }
+};
+
+// ─── API Client ───────────────────────────────────────────────
+const API = {
+  /**
+   * เรียก google.script.run และ wrap เป็น Promise
+   * @param {string} fnName - ชื่อ server-side function
+   * @param {...*} args - arguments
+   * @returns {Promise}
+   */
+  call(fnName, ...args) {
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        [fnName](...args);
+    });
+  },
+
+  /** Login */
+  async login(username, password) {
+    return this.call('loginUser', username, password);
+  },
+
+  /** Logout */
+  async logout() {
+    return this.call('logoutUser');
+  },
+
+  /** ดึง Session */
+  async getSession() {
+    return this.call('getSessionData');
+  },
+
+  /** Dashboard stats */
+  async getDashboard() {
+    return this.call('getDashboardData');
+  },
+
+  /** รายการเอกสาร */
+  async getDocs(filters) {
+    return this.call('getDocumentList', filters || {});
+  },
+
+  /** เอกสารเดี่ยว */
+  async getDoc(id) {
+    return this.call('getDocumentById', id);
+  },
+
+  /** จองเลขเอกสาร */
+  async reserveDocNo(type, dept) {
+    return this.call('reserveDocumentNumber', type, dept);
+  },
+
+  /** อนุมัติ */
+  async approve(docId, remark) {
+    return this.call('approveDocument', docId, remark);
+  },
+
+  /** ปฏิเสธ */
+  async reject(docId, remark, returnToCreator) {
+    return this.call('rejectDocument', docId, remark, returnToCreator);
+  },
+
+  /** รับทราบ */
+  async acknowledge(docId, remark) {
+    return this.call('acknowledgeDocument', docId, remark);
+  },
+
+  /** อัปโหลดไฟล์ */
+  async uploadFile(params) {
+    return this.call('uploadDocumentFile', params);
+  },
+
+  /** การแจ้งเตือน */
+  async getNotifications() {
+    return this.call('getMyNotifications');
+  },
+
+  async markNotifRead(id) {
+    return this.call('markNotificationRead', id);
+  },
+
+  async markAllNotifsRead() {
+    return this.call('markAllNotificationsRead');
+  },
+
+  /** ดึง URL ของ App */
+  async getAppUrl() {
+    return this.call('getAppUrl');
+  }
+};
+
+// ─── Navigation Helper ────────────────────────────────────────
+const Nav = {
+  _appUrl: null,
+
+  async init() {
+    this._appUrl = await API.getAppUrl().catch(() => '');
+  },
+
+  go(page) {
+    if (this._appUrl) {
+      window.location.href = `${this._appUrl}?page=${page}`;
+    } else {
+      google.script.run.withSuccessHandler(url => {
+        window.location.href = `${url}?page=${page}`;
+      }).getAppUrl();
+    }
+  },
+
+  reload() { window.location.reload(); }
+};
+
+// ─── Notification Manager ─────────────────────────────────────
+const NotifManager = {
+  _panel: null,
+  _badge: null,
+  _count: 0,
+
+  init(panelId, badgeId) {
+    this._panel = document.getElementById(panelId);
+    this._badge = document.getElementById(badgeId);
+    this.refresh();
+    // Refresh ทุก 60 วินาที
+    setInterval(() => this.refresh(), 60000);
+  },
+
+  async refresh() {
+    const res = await API.getNotifications().catch(() => null);
+    if (res && res.success) {
+      this._count = res.data.length;
+      this._updateBadge();
+      this._renderItems(res.data);
+    }
+  },
+
+  _updateBadge() {
+    if (!this._badge) return;
+    this._badge.style.display = this._count > 0 ? 'block' : 'none';
+    this._badge.textContent   = this._count > 9 ? '9+' : this._count;
+  },
+
+  _renderItems(items) {
+    if (!this._panel) return;
+    const list = this._panel.querySelector('.notif-list');
+    if (!list) return;
+
+    if (items.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state" style="padding:2rem">
+          <div class="empty-icon">🔔</div>
+          <div class="empty-title">ไม่มีการแจ้งเตือน</div>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = items.map(n => `
+      <div class="notif-item ${n.status === 'unread' ? 'unread' : ''}" onclick="NotifManager.read('${n.id}','${n.docId}')">
+        <div class="notif-msg">${App.escHtml(n.message)}</div>
+        <div class="notif-time">${App.timeAgo(n.createdAt)}</div>
+      </div>`).join('');
+  },
+
+  async read(id, docId) {
+    await API.markNotifRead(id).catch(() => {});
+    if (docId) Nav.go(`dashboard#doc-${docId}`);
+    this.refresh();
+  },
+
+  async readAll() {
+    Swal2.loading('กำลังอ่านทั้งหมด...');
+    const res = await API.markAllNotifsRead().catch(() => null);
+    Swal2.close();
+    if (res && res.success) {
+      Swal2.toast('อ่านทั้งหมดแล้ว', 'success');
+      this.refresh();
+    }
+  },
+
+  toggle() {
+    if (!this._panel) return;
+    this._panel.classList.toggle('open');
+  }
+};
+
+// ─── App Utilities ────────────────────────────────────────────
+const App = {
+  /** Escape HTML characters */
+  escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  },
+
+  /** แสดงเวลาแบบ relative เช่น "5 นาทีที่แล้ว" */
+  timeAgo(dateStr) {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1)  return 'เมื่อสักครู่';
+    if (mins < 60) return `${mins} นาทีที่แล้ว`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24)  return `${hrs} ชั่วโมงที่แล้ว`;
+    const days = Math.floor(hrs / 24);
+    if (days < 30) return `${days} วันที่แล้ว`;
+    return new Date(dateStr).toLocaleDateString('th-TH');
+  },
+
+  /** สร้าง badge HTML ตาม status */
+  statusBadge(status) {
+    const labels = {
+      draft:       { text:'ร่าง',             cls:'badge-draft'       },
+      pending:     { text:'รอดำเนินการ',       cls:'badge-pending'     },
+      in_progress: { text:'กำลังดำเนินการ',    cls:'badge-in_progress' },
+      approved:    { text:'อนุมัติแล้ว',       cls:'badge-approved'    },
+      rejected:    { text:'ถูกปฏิเสธ',        cls:'badge-rejected'    },
+      completed:   { text:'เสร็จสิ้น',        cls:'badge-completed'   }
+    };
+    const s = labels[status] || { text: status, cls: 'badge-muted' };
+    return `<span class="badge ${s.cls}">${s.text}</span>`;
+  },
+
+  /** สร้าง badge ประเภทเอกสาร */
+  docTypeBadge(type) {
+    return type === 'internal'
+      ? `<span class="badge badge-primary">📄 ภายใน</span>`
+      : `<span class="badge badge-info">📨 ภายนอก</span>`;
+  },
+
+  /** Format ตัวเลขใส่ comma */
+  formatNum(n) {
+    return Number(n).toLocaleString('th-TH');
+  },
+
+  /** ตัดข้อความยาว */
+  truncate(str, n = 50) {
+    if (!str) return '';
+    return str.length > n ? str.slice(0, n) + '…' : str;
+  },
+
+  /** แปลง File เป็น base64 (สำหรับ upload) */
+  fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = (e) => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  },
+
+  /** ตรวจนามสกุลไฟล์ที่อนุญาต */
+  isAllowedFile(file) {
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    return allowedTypes.includes(file.type);
+  },
+
+  /** แสดง/ซ่อน Loading overlay บน element */
+  setLoading(btn, loading) {
+    if (!btn) return;
+    btn.classList.toggle('loading', loading);
+    btn.disabled = loading;
+  },
+
+  /** Toggle sidebar บน mobile */
+  toggleSidebar() {
+    document.getElementById('sidebar')?.classList.toggle('open');
+    document.getElementById('sidebar-overlay')?.classList.toggle('show');
+  },
+
+  /** Init active nav item */
+  setActiveNav(page) {
+    document.querySelectorAll('.nav-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.page === page);
+    });
+  }
+};
+
+// ─── File Upload Handler ──────────────────────────────────────
+const FileUploader = {
+  /**
+   * จัดการการ drag-and-drop และ click upload
+   * @param {string} zoneId - id ของ upload zone element
+   * @param {Function} onFile - callback เมื่อได้ไฟล์ (file object)
+   */
+  init(zoneId, onFile) {
+    const zone = document.getElementById(zoneId);
+    if (!zone) return;
+
+    zone.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.pdf,.doc,.docx';
+      input.onchange = (e) => {
+        const f = e.target.files[0];
+        if (f) this._handleFile(f, onFile, zone);
+      };
+      input.click();
+    });
+
+    zone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      zone.classList.add('drag-over');
+    });
+
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+
+    zone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      const f = e.dataTransfer.files[0];
+      if (f) this._handleFile(f, onFile, zone);
+    });
+  },
+
+  _handleFile(file, onFile, zone) {
+    if (!App.isAllowedFile(file)) {
+      Swal2.error('ประเภทไฟล์ไม่ถูกต้อง', 'รองรับเฉพาะ PDF และ Word (.doc, .docx) เท่านั้น');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) { // 20MB
+      Swal2.error('ไฟล์ใหญ่เกินไป', 'ขนาดไฟล์ต้องไม่เกิน 20 MB');
+      return;
+    }
+    zone.querySelector('.upload-text').textContent = `📎 ${file.name}`;
+    zone.style.borderColor = 'var(--c-success)';
+    onFile(file);
+  }
+};
+
+// ─── Global init ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Close sidebar overlay บน mobile
+  document.getElementById('sidebar-overlay')?.addEventListener('click', App.toggleSidebar);
+
+  // Close notification panel เมื่อคลิกข้างนอก
+  document.addEventListener('click', (e) => {
+    const panel = document.getElementById('notif-panel');
+    const bell  = document.getElementById('notif-btn');
+    if (panel && bell && !panel.contains(e.target) && !bell.contains(e.target)) {
+      panel.classList.remove('open');
+    }
+  });
+});
+</script>

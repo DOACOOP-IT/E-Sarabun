@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Sarabun</title>
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- Design System -->
+  <?!= include('Stylesheet') ?>
+  <!-- SweetAlert2 custom theme override -->
+  <style>
+    .swal2-popup              { font-family: 'Sarabun', sans-serif !important; border-radius: 20px !important; }
+    .swal2-title              { font-family: 'Sarabun', sans-serif !important; font-weight: 700 !important; }
+    .swal2-html-container     { font-family: 'Sarabun', sans-serif !important; }
+    .swal2-confirm, .swal2-cancel { font-family: 'Sarabun', sans-serif !important; border-radius: 9999px !important; font-weight: 600 !important; }
+    .swal-toast-custom        { border-radius: 12px !important; boxing-shadow: 0 4px 20px rgba(37,99,235,0.15) !important; }
+  </style>
+</head>
+<body>
+  <!-- Sidebar overlay (mobile) -->
+  <div id="sidebar-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;"></div>
+
+  <!-- App content injected by subpage -->
+  <?!= content ?>
+
+  <!-- Global JS -->
+  <?!= include('JavaScript') ?>
+</body>
+</html>

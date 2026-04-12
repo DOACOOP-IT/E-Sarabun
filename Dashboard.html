@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>หน้าหลัก — E-Sarabun</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <?!= include('Stylesheet') ?>
+  <style>
+    /* ── Dashboard-specific ─────────────────────────────────── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+      gap: 16px; margin-bottom: 28px;
+    }
+    .stat-card { cursor: default; }
+    .stat-card-blue   { --card-accent: #2563eb; border-top: 3px solid #2563eb; }
+    .stat-card-yellow { --card-accent: #d97706; border-top: 3px solid #d97706; }
+    .stat-card-green  { --card-accent: #059669; border-top: 3px solid #059669; }
+    .stat-card-red    { --card-accent: #dc2626; border-top: 3px solid #dc2626; }
+    .stat-card-indigo { --card-accent: #4f46e5; border-top: 3px solid #4f46e5; }
+    .stat-card-sky    { --card-accent: #0891b2; border-top: 3px solid #0891b2; }
+    .stat-card-value  { color: var(--card-accent, var(--c-primary)); }
+
+    /* Pending action cards */
+    .pending-card {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-xl);
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 14px;
+      cursor: pointer; transition: all var(--tr-slow);
+    }
+    .pending-card:hover { transform: translateY(-2px) scale(1.01); box-shadow: var(--shadow-md); }
+    .pending-icon {
+      width: 44px; height: 44px; border-radius: var(--r-md);
+      background: var(--c-primary-light); color: var(--c-primary);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 1.2rem;
+    }
+
+    /* Quick action buttons */
+    .quick-actions {
+      display: grid; grid-template-columns: repeat(2,1fr); gap: 12px;
+      margin-bottom: 24px;
+    }
+    .quick-btn {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; padding: 20px 12px;
+      background: var(--c-bg-card); border-radius: var(--r-xl);
+      box-shadow: var(--shadow-card);
+      cursor: pointer; transition: all var(--tr-slow);
+      text-decoration: none; color: var(--c-text);
+      border: 1.5px solid var(--c-border);
+      font-family: var(--font);
+    }
+    .quick-btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: var(--shadow-md); color: var(--c-primary); border-color: var(--c-primary); }
+    .quick-btn-icon { width: 44px; height: 44px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+    .quick-btn-label { font-size: 0.875rem; font-weight: 600; text-align: center; }
+
+    /* Welcome section */
+    .welcome-banner {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
+      border-radius: var(--r-2xl); padding: 28px 32px;
+      margin-bottom: 28px;
+      position: relative; overflow: hidden;
+    }
+    .welcome-banner::before {
+      content: ''; position: absolute; top: -40px; right: -40px;
+      width: 200px; height: 200px; border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+    }
+    .welcome-banner::after {
+      content: ''; position: absolute; bottom: -30px; right: 60px;
+      width: 120px; height: 120px; border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+    }
+    .welcome-greeting { color: rgba(255,255,255,0.75); font-size: 0.9rem; font-weight: 500; }
+    .welcome-name     { color: #fff; font-size: 1.5rem; font-weight: 800; margin-top: 2px; }
+    .welcome-dept     { color: rgba(255,255,255,0.65); font-size: 0.875rem; margin-top: 4px; }
+    .welcome-date     { color: rgba(255,255,255,0.6); font-size: 0.8rem; margin-top: 12px; }
+
+    /* Notification panel in sidebar (right panel) */
+    .notif-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--c-border);
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; background: var(--c-bg-card); z-index: 1;
+    }
+    .notif-header-title { font-weight: 700; font-size: 1rem; }
+
+    /* Skeleton loaders */
+    .skeleton-line {
+      height: 16px; border-radius: 8px; margin-bottom: 8px;
+    }
+    .skeleton-line.w-full  { width: 100%; }
+    .skeleton-line.w-3\/4  { width: 75%; }
+    .skeleton-line.w-1\/2  { width: 50%; }
+
+    /* Activities */
+    .activity-item {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 10px 0; border-bottom: 1px solid var(--c-border);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--c-primary); flex-shrink: 0; margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- ── Sidebar ──────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- Logo -->
+    <div class="sidebar-header">
+      <div class="sidebar-logo">ส</div>
+      <div>
+        <div class="sidebar-title">E-Sarabun</div>
+        <div class="sidebar-subtitle">ระบบสารบรรณ</div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+
+      <div class="nav-section-label">เมนูหลัก</div>
+
+      <a class="nav-item active" data-page="dashboard" onclick="Nav.go('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        หน้าหลัก
+      </a>
+
+      <a class="nav-item" data-page="inbox" onclick="Nav.go('inbox')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+        กล่องงานค้าง
+        <span class="nav-badge" id="nav-inbox-count" style="display:none">0</span>
+      </a>
+
+      <div class="nav-section-label" style="margin-top:8px">เอกสาร</div>
+
+      <a class="nav-item" data-page="doc-external" onclick="Nav.go('doc-external')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        เอกสารภายนอก
+      </a>
+
+      <a class="nav-item" data-page="doc-internal" onclick="Nav.go('doc-internal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+        </svg>
+        เอกสารภายใน
+      </a>
+
+      <a class="nav-item" data-page="archive" onclick="Nav.go('archive')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5" rx="1"/>
+          <line x1="10" y1="12" x2="14" y2="12"/>
+        </svg>
+        แฟ้มจัดเก็บ
+      </a>
+
+      <!-- Admin only -->
+      <div id="nav-admin" style="display:none">
+        <div class="nav-section-label" style="margin-top:8px">ผู้ดูแลระบบ</div>
+        <a class="nav-item" data-page="admin" onclick="Nav.go('admin')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+          </svg>
+          จัดการระบบ
+        </a>
+      </div>
+    </nav>
+
+    <!-- User Profile -->
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebar-avatar">-</div>
+        <div style="flex:1;min-width:0;">
+          <div class="sidebar-user-name" id="sidebar-name">กำลังโหลด...</div>
+          <div class="sidebar-user-role" id="sidebar-role"></div>
+        </div>
+        <button
+          onclick="handleLogout()"
+          style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.5);padding:4px;"
+          title="ออกจากระบบ"
+          data-tooltip="ออกจากระบบ">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ──────────────────────────────────────── -->
+  <main class="main-content">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <!-- Mobile hamburger -->
+        <button
+          onclick="App.toggleSidebar()"
+          style="display:none;background:none;border:none;cursor:pointer;padding:4px;"
+          id="hamburger">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <span class="topbar-title" id="page-title">หน้าหลัก</span>
+      </div>
+      <div class="topbar-actions">
+        <!-- Notification Bell -->
+        <button class="notif-btn" id="notif-btn" onclick="NotifManager.toggle()" title="การแจ้งเตือน">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span class="notif-dot" id="notif-dot" style="display:none;"></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Notification Panel -->
+    <div class="notif-panel" id="notif-panel">
+      <div class="notif-header">
+        <span class="notif-header-title">🔔 การแจ้งเตือน</span>
+        <button class="btn btn-sm btn-ghost" onclick="NotifManager.readAll()">อ่านทั้งหมด</button>
+      </div>
+      <div class="notif-list"></div>
+    </div>
+
+    <!-- Page Body -->
+    <div class="page-body">
+
+      <!-- Welcome Banner -->
+      <div class="welcome-banner animate-fadein">
+        <div class="welcome-greeting">สวัสดี,</div>
+        <div class="welcome-name" id="welcome-name">กำลังโหลด...</div>
+        <div class="welcome-dept" id="welcome-dept"></div>
+        <div class="welcome-date" id="welcome-date"></div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stat-grid stagger" id="stats-grid">
+        <!-- Skeleton loading -->
+        <div class="stat-card">
+          <div class="skeleton skeleton-line w-1\/2" style="height:12px;margin-bottom:12px;"></div>
+          <div class="skeleton skeleton-line w-3\/4" style="height:32px;"></div>
+        </div>
+        <div class="stat-card">
+          <div class="skeleton skeleton-line w-1\/2" style="height:12px;margin-bottom:12px;"></div>
+          <div class="skeleton skeleton-line w-3\/4" style="height:32px;"></div>
+        </div>
+        <div class="stat-card">
+          <div class="skeleton skeleton-line w-1\/2" style="height:12px;margin-bottom:12px;"></div>
+          <div class="skeleton skeleton-line w-3\/4" style="height:32px;"></div>
+        </div>
+        <div class="stat-card">
+          <div class="skeleton skeleton-line w-1\/2" style="height:12px;margin-bottom:12px;"></div>
+          <div class="skeleton skeleton-line w-3\/4" style="height:32px;"></div>
+        </div>
+      </div>
+
+      <!-- Two column layout -->
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start;" id="main-grid">
+
+        <!-- Left: Recent Docs -->
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div style="font-weight:700;font-size:1rem;">📋 เอกสารล่าสุด</div>
+                <div style="font-size:0.8rem;color:var(--c-text-muted);margin-top:2px;">เอกสารที่สร้างหรืออัปเดตล่าสุด</div>
+              </div>
+              <button class="btn btn-sm btn-ghost" onclick="Nav.go('doc-external')">
+                ดูทั้งหมด
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            </div>
+            <div class="table-wrapper" style="border-radius:0;box-shadow:none;">
+              <table class="table" id="recent-docs-table">
+                <thead>
+                  <tr>
+                    <th>เลขที่</th>
+                    <th>เรื่อง</th>
+                    <th>ประเภท</th>
+                    <th>สถานะ</th>
+                    <th>วันที่</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="recent-docs-body">
+                  <tr>
+                    <td colspan="6">
+                      <div class="d-flex justify-center" style="padding:20px;">
+                        <div class="skeleton skeleton-line w-full" style="height:14px;max-width:300px;"></div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div>
+
+          <!-- Quick Actions -->
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-header">
+              <span style="font-weight:700;font-size:1rem;">⚡ ทำรายการด่วน</span>
+            </div>
+            <div class="card-body" style="padding:16px;">
+              <div class="quick-actions">
+                <button class="quick-btn" onclick="Nav.go('doc-external')">
+                  <div class="quick-btn-icon" style="background:#dbeafe;">📨</div>
+                  <span class="quick-btn-label">ลงรับเอกสาร<br>ภายนอก</span>
+                </button>
+                <button class="quick-btn" onclick="Nav.go('doc-internal')">
+                  <div class="quick-btn-icon" style="background:#d1fae5;">📄</div>
+                  <span class="quick-btn-label">สร้างเอกสาร<br>ภายใน</span>
+                </button>
+                <button class="quick-btn" onclick="Nav.go('inbox')">
+                  <div class="quick-btn-icon" style="background:#fef3c7;">📥</div>
+                  <span class="quick-btn-label">งานค้าง<br>รอดำเนินการ</span>
+                </button>
+                <button class="quick-btn" onclick="Nav.go('archive')">
+                  <div class="quick-btn-icon" style="background:#ede9fe;">🗂</div>
+                  <span class="quick-btn-label">แฟ้มจัดเก็บ<br>ดิจิทัล</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pending for me -->
+          <div class="card">
+            <div class="card-header">
+              <span style="font-weight:700;font-size:1rem;">⏳ รอการดำเนินการ</span>
+              <span class="badge badge-warning" id="pending-count">0</span>
+            </div>
+            <div class="card-body" style="padding:12px 16px;" id="pending-list">
+              <div class="empty-state" style="padding:20px;">
+                <div class="empty-icon" style="font-size:2rem;">🎉</div>
+                <div class="empty-title">ไม่มีงานค้าง</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ── Logout Confirm Modal ────────────────────────────────── -->
+<div class="modal-overlay" id="logout-modal" onclick="closeLogoutModal(event)">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-body" style="text-align:center;padding:40px 32px;">
+      <div style="font-size:3rem;margin-bottom:12px;">👋</div>
+      <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:8px;">ออกจากระบบ?</h3>
+      <p style="color:var(--c-text-muted);font-size:0.9rem;">คุณต้องการออกจากระบบใช่หรือไม่</p>
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:24px;">
+        <button class="btn btn-ghost" onclick="closeLogoutModal()">ยกเลิก</button>
+        <button class="btn btn-danger" onclick="confirmLogout()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          ออกจากระบบ
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SweetAlert2 Custom Styles -->
+<style>
+  .swal2-popup, .swal2-title, .swal2-html-container, .swal2-confirm, .swal2-cancel {
+    font-family: 'Sarabun', sans-serif !important;
+  }
+  .swal2-popup     { border-radius: 20px !important; }
+  .swal2-confirm, .swal2-cancel { border-radius: 9999px !important; font-weight: 600 !important; }
+
+  @media (max-width: 992px) {
+    #hamburger { display: flex !important; }
+    #main-grid { grid-template-columns: 1fr !important; }
+    #sidebar-overlay { display: block !important; pointer-events: none; transition: opacity 0.2s; opacity: 0; }
+    #sidebar-overlay.show { pointer-events: all; opacity: 1; }
+  }
+</style>
+
+<?!= include('JavaScript') ?>
+
+<script>
+  // ─── Initialization ──────────────────────────────────────────
+  let currentSession = null;
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Load session
+    try {
+      const session = await API.getSession();
+      if (!session) {
+        // Not logged in → redirect
+        google.script.run.withSuccessHandler(url => {
+          window.location.href = url + '?page=login';
+        }).getAppUrl();
+        return;
+      }
+      currentSession = session;
+      updateSidebarUser(session);
+      updateWelcomeBanner(session);
+
+      // Admin nav
+      if (['manager','asst_manager'].includes(session.role)) {
+        document.getElementById('nav-admin').style.display = 'block';
+      }
+
+      // Init Nav
+      await Nav.init();
+
+      // Load dashboard data
+      loadDashboard();
+
+      // Init notifications
+      NotifManager.init('notif-panel', 'notif-dot');
+
+    } catch (e) {
+      Swal2.error('ไม่สามารถโหลดข้อมูล', e.message || 'กรุณารีโหลดหน้าใหม่');
+    }
+  });
+
+  // ─── Dashboard Data ───────────────────────────────────────────
+  async function loadDashboard() {
+    try {
+      const res = await API.getDashboard();
+      if (!res || !res.success) throw new Error(res?.message || 'โหลดข้อมูลไม่สำเร็จ');
+
+      const data = res.data;
+      renderStats(data);
+      renderRecentDocs(data.recentDocs || []);
+      renderPendingList(data.pendingForMe || []);
+
+    } catch (e) {
+      document.getElementById('stats-grid').innerHTML = `
+        <div style="grid-column:1/-1;">
+          <div class="alert alert-danger">โหลดข้อมูลไม่สำเร็จ: ${App.escHtml(e.message)}</div>
+        </div>`;
+    }
+  }
+
+  function renderStats(data) {
+    const grid = document.getElementById('stats-grid');
+    const stats = [
+      { value: App.formatNum(data.totalDocs), label: 'เอกสารทั้งหมด',    cls: 'stat-card-blue',   icon: '📄' },
+      { value: App.formatNum(data.pending),   label: 'รอดำเนินการ',      cls: 'stat-card-yellow', icon: '⏳' },
+      { value: App.formatNum(data.inProgress),label: 'กำลังดำเนินการ',   cls: 'stat-card-sky',    icon: '🔄' },
+      { value: App.formatNum(data.completed), label: 'เสร็จสิ้น',        cls: 'stat-card-green',  icon: '✅' },
+      { value: App.formatNum(data.internal),  label: 'เอกสารภายใน',      cls: 'stat-card-indigo', icon: '📝' },
+      { value: App.formatNum(data.external),  label: 'เอกสารภายนอก',     cls: 'stat-card-blue',   icon: '📨' },
+    ];
+
+    grid.innerHTML = stats.map(s => `
+      <div class="stat-card ${s.cls} animate-fadein">
+        <div class="d-flex items-center justify-between" style="margin-bottom:12px;">
+          <div class="stat-card-label">${s.label}</div>
+          <div style="font-size:1.3rem;">${s.icon}</div>
+        </div>
+        <div class="stat-card-value">${s.value}</div>
+      </div>`).join('');
+  }
+
+  function renderRecentDocs(docs) {
+    const tbody = document.getElementById('recent-docs-body');
+    if (!docs || docs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--c-text-muted);">ไม่มีเอกสาร</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = docs.map(doc => `
+      <tr>
+        <td><code style="font-size:0.8rem;background:var(--c-primary-pale);padding:2px 8px;border-radius:6px;">${App.escHtml(doc.docNo)}</code></td>
+        <td>${App.escHtml(App.truncate(doc.subject, 40))}</td>
+        <td>${App.docTypeBadge(doc.docType)}</td>
+        <td>${App.statusBadge(doc.status)}</td>
+        <td style="white-space:nowrap;font-size:0.8rem;color:var(--c-text-muted);">${App.escHtml(doc.dateTH || '')}</td>
+        <td>
+          <button class="btn btn-sm btn-ghost" onclick="viewDoc('${doc.id}')" style="padding:4px 10px;font-size:0.8rem;">
+            ดู
+          </button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderPendingList(items) {
+    const list  = document.getElementById('pending-list');
+    const count = document.getElementById('pending-count');
+    count.textContent = items.length;
+
+    // Update inbox badge in sidebar
+    const inboxBadge = document.getElementById('nav-inbox-count');
+    if (inboxBadge) {
+      inboxBadge.style.display = items.length > 0 ? 'inline-block' : 'none';
+      inboxBadge.textContent   = items.length;
+    }
+
+    if (!items || items.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state" style="padding:20px;">
+          <div class="empty-icon" style="font-size:2rem;">🎉</div>
+          <div class="empty-title">ไม่มีงานค้าง</div>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = items.map(doc => `
+      <div class="pending-card" onclick="viewDoc('${doc.id}')">
+        <div class="pending-icon">📋</div>
+        <div style="min-width:0;flex:1;">
+          <div style="font-weight:600;font-size:0.85rem;">${App.escHtml(doc.docNo)}</div>
+          <div style="font-size:0.78rem;color:var(--c-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${App.escHtml(App.truncate(doc.subject, 35))}</div>
+          <div style="margin-top:4px;">${App.statusBadge(doc.status)}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  // ─── UI Helpers ───────────────────────────────────────────────
+  function updateSidebarUser(session) {
+    const initial = session.displayName ? session.displayName.charAt(0) : '?';
+    document.getElementById('sidebar-avatar').textContent = initial;
+    document.getElementById('sidebar-name').textContent   = session.displayName || session.username;
+    document.getElementById('sidebar-role').textContent   = getRoleLabel(session.role);
+  }
+
+  function updateWelcomeBanner(session) {
+    document.getElementById('welcome-name').textContent   = session.displayName || session.username;
+    document.getElementById('welcome-dept').textContent   = session.department || '';
+
+    const now    = new Date();
+    const daysTH = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+    const monthsTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const dateStr = `วัน${daysTH[now.getDay()]}ที่ ${now.getDate()} ${monthsTH[now.getMonth()]} ${now.getFullYear()+543}`;
+    document.getElementById('welcome-date').textContent = dateStr;
+  }
+
+  function getRoleLabel(role) {
+    const m = { officer:'เจ้าหน้าที่', dept_head:'หัวหน้าฝ่าย', asst_manager:'ผู้ช่วยผู้จัดการ', manager:'ผู้จัดการ' };
+    return m[role] || role;
+  }
+
+  async function viewDoc(id) {
+    // For now → show simple info (full page in next phase)
+    Swal2.loading('กำลังโหลดเอกสาร...');
+    const res = await API.getDoc(id).catch(() => null);
+    Swal2.close();
+
+    if (!res || !res.success) {
+      Swal2.error('ไม่สามารถโหลดเอกสาร', res?.message || 'เกิดข้อผิดพลาด');
+      return;
+    }
+    const doc = res.data;
+    Swal.fire({
+      title: `[${doc.docNo}]`,
+      html: `
+        <div style="text-align:left;font-family:Sarabun,sans-serif;">
+          <div style="margin-bottom:8px;"><b>เรื่อง:</b> ${App.escHtml(doc.subject)}</div>
+          <div style="margin-bottom:8px;"><b>ประเภท:</b> ${doc.docType === 'internal' ? 'เอกสารภายใน' : 'เอกสารภายนอก'}</div>
+          <div style="margin-bottom:8px;"><b>วันที่:</b> ${App.escHtml(doc.dateTH)}</div>
+          <div style="margin-bottom:8px;"><b>จาก:</b> ${App.escHtml(doc.sender)}</div>
+          <div><b>สถานะ:</b> ${App.statusBadge(doc.status)}</div>
+        </div>`,
+      confirmButtonText: 'ปิด',
+      confirmButtonColor: '#2563eb',
+    });
+  }
+
+  // ─── Logout ────────────────────────────────────────────────────
+  function handleLogout() {
+    document.getElementById('logout-modal').classList.add('show');
+  }
+
+  function closeLogoutModal(event) {
+    if (!event || event.target === document.getElementById('logout-modal')) {
+      document.getElementById('logout-modal').classList.remove('show');
+    }
+  }
+
+  async function confirmLogout() {
+    Swal2.loading('กำลังออกจากระบบ...');
+    const res = await API.logout().catch(() => null);
+    Swal2.close();
+
+    if (res && res.success) {
+      await Swal.fire({
+        icon: 'success', title: 'ออกจากระบบแล้ว',
+        showConfirmButton: false, timer: 1000, timerProgressBar: true,
+      });
+      google.script.run.withSuccessHandler(url => {
+        window.location.href = url + '?page=login';
+      }).getAppUrl();
+    } else {
+      Swal2.error('เกิดข้อผิดพลาด', 'ไม่สามารถออกจากระบบได้');
+    }
+  }
+</script>
+</body>
+</html>

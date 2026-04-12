@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เข้าสู่ระบบ — E-Sarabun</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <?!= include('Stylesheet') ?>
+  <style>
+    /* ── Login-specific styles ─────────────────────────── */
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #e0eeff 0%, #dbeafe 35%, #eff6ff 65%, #f0f9ff 100%);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Ghibli sky background elements */
+    .bg-clouds { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+    .cloud {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(40px);
+      animation: cloudFloat 10s ease-in-out infinite;
+    }
+    .cloud-1 { width:420px; height:420px; background:rgba(147,197,253,0.35); top:-120px; left:-80px; animation-duration:12s; }
+    .cloud-2 { width:300px; height:300px; background:rgba(165,180,252,0.25); top:10%; right:-60px; animation-duration:9s; animation-delay:2s; }
+    .cloud-3 { width:200px; height:200px; background:rgba(196,181,253,0.20); bottom:15%; left:5%; animation-duration:11s; animation-delay:4s; }
+    .cloud-4 { width:250px; height:250px; background:rgba(125,211,252,0.25); bottom:-60px; right:20%; animation-duration:8s; animation-delay:1s; }
+    .cloud-5 { width:150px; height:150px; background:rgba(167,243,208,0.20); top:40%; left:25%; animation-duration:13s; animation-delay:3s; }
+
+    @keyframes cloudFloat {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33%      { transform: translate(12px,-16px) scale(1.04); }
+      66%      { transform: translate(-8px,10px) scale(0.96); }
+    }
+
+    /* Floating particles */
+    .particle {
+      position: absolute; border-radius: 50%;
+      background: rgba(37,99,235,0.12);
+      animation: particleFloat linear infinite;
+      pointer-events: none;
+    }
+    @keyframes particleFloat {
+      0%   { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+    }
+
+    /* ── Login Card ──────────────────────────────────────── */
+    .login-wrapper {
+      position: relative; z-index: 10;
+      width: min(92vw, 460px);
+      animation: loginAppear 0.7s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes loginAppear {
+      from { opacity: 0; transform: translateY(40px) scale(0.9); }
+      to   { opacity: 1; transform: translateY(0)   scale(1); }
+    }
+
+    .login-card {
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: blur(20px) saturate(1.5);
+      -webkit-backdrop-filter: blur(20px) saturate(1.5);
+      border-radius: 32px;
+      padding: 48px 40px 40px;
+      box-shadow:
+        0 24px 80px rgba(37,99,235,0.18),
+        0 4px 12px rgba(37,99,235,0.08),
+        0 0 0 1px rgba(255,255,255,0.6) inset;
+      border: 1px solid rgba(255,255,255,0.7);
+    }
+
+    /* Brand header */
+    .brand-area { text-align: center; margin-bottom: 36px; }
+    .brand-icon {
+      width: 72px; height: 72px; border-radius: 22px;
+      background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 32px rgba(37,99,235,0.35);
+      animation: iconPulse 3s ease-in-out infinite;
+    }
+    @keyframes iconPulse {
+      0%,100% { box-shadow: 0 8px 32px rgba(37,99,235,0.35); }
+      50%      { box-shadow: 0 8px 40px rgba(37,99,235,0.55); }
+    }
+    .brand-icon svg { width: 36px; height: 36px; color: #fff; }
+
+    .brand-name {
+      font-size: 1.875rem; font-weight: 800;
+      background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #60a5fa 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px; line-height: 1;
+    }
+    .brand-tagline {
+      font-size: 0.875rem; color: var(--c-text-muted);
+      margin-top: 6px; font-weight: 500;
+    }
+
+    /* Form */
+    .login-form .form-label {
+      font-size: 0.9rem; font-weight: 700; color: var(--c-text);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .login-form .form-control {
+      background: rgba(255,255,255,0.7);
+      border: 1.5px solid rgba(37,99,235,0.2);
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+    .login-form .form-control:focus {
+      background: #fff;
+      border-color: var(--c-primary);
+      box-shadow: 0 0 0 4px rgba(37,99,235,0.12);
+      transform: translateY(-1px);
+    }
+    .login-form .input-group .form-control { padding-left: 44px; }
+
+    .btn-login {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: #fff; font-size: 1rem; font-weight: 700;
+      border-radius: var(--r-pill); border: none; cursor: pointer;
+      font-family: var(--font); letter-spacing: 0.01em;
+      box-shadow: 0 4px 20px rgba(37,99,235,0.35);
+      transition: all var(--tr-slow);
+      position: relative; overflow: hidden;
+      margin-top: 4px;
+    }
+    .btn-login::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 100%);
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .btn-login:hover  { transform: scale(1.03); box-shadow: 0 8px 32px rgba(37,99,235,0.45); }
+    .btn-login:hover::before { opacity: 1; }
+    .btn-login:active { transform: scale(0.97); }
+
+    /* Password toggle */
+    .pwd-toggle {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: var(--c-text-muted); padding: 4px;
+      transition: color var(--tr-base);
+    }
+    .pwd-toggle:hover { color: var(--c-primary); }
+
+    /* Footer */
+    .login-footer {
+      text-align: center; margin-top: 28px;
+      font-size: 0.8rem; color: var(--c-text-muted);
+    }
+    .login-footer a {
+      color: var(--c-primary); font-weight: 600;
+      text-decoration: none;
+    }
+    .login-footer a:hover { text-decoration: underline; }
+
+    /* Version */
+    .version-tag {
+      text-align: center; margin-top: 20px;
+      font-size: 0.75rem; color: rgba(100,116,139,0.6);
+    }
+
+    /* Ghibli decorations */
+    .deco-star {
+      position: absolute; pointer-events: none;
+      animation: starTwinkle 2s ease-in-out infinite;
+    }
+    @keyframes starTwinkle {
+      0%,100% { opacity: 0.3; transform: scale(0.8) rotate(0deg); }
+      50%      { opacity: 1;   transform: scale(1.2) rotate(20deg); }
+    }
+    .deco-star-1 { top: -20px; right: 30px; font-size: 1.2rem; animation-delay: 0s; }
+    .deco-star-2 { top: 20px; left: -15px; font-size: 0.9rem; animation-delay: 0.8s; }
+    .deco-star-3 { bottom: 30px; right: -10px; font-size: 1rem; animation-delay: 1.5s; }
+  </style>
+</head>
+<body>
+
+  <!-- Ghibli Background Clouds -->
+  <div class="bg-clouds">
+    <div class="cloud cloud-1"></div>
+    <div class="cloud cloud-2"></div>
+    <div class="cloud cloud-3"></div>
+    <div class="cloud cloud-4"></div>
+    <div class="cloud cloud-5"></div>
+  </div>
+
+  <!-- Floating Particles (JS inject) -->
+  <div id="particles"></div>
+
+  <!-- Login Card -->
+  <div class="login-wrapper">
+
+    <!-- Ghibli stars -->
+    <span class="deco-star deco-star-1">✦</span>
+    <span class="deco-star deco-star-2">✧</span>
+    <span class="deco-star deco-star-3">✦</span>
+
+    <div class="login-card">
+
+      <!-- Brand -->
+      <div class="brand-area">
+        <div class="brand-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+        </div>
+        <h1 class="brand-name">E-Sarabun</h1>
+        <p class="brand-tagline">ระบบสารบรรณอิเล็กทรอนิกส์</p>
+      </div>
+
+      <!-- Form -->
+      <form id="login-form" class="login-form" onsubmit="return false;">
+
+        <!-- Username -->
+        <div class="form-group">
+          <label class="form-label" for="username">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            ชื่อผู้ใช้
+          </label>
+          <div class="input-group">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input
+              type="text" id="username" name="username"
+              class="form-control" placeholder="กรอก Username"
+              autocomplete="username" autocapitalize="none"
+              maxlength="30"
+            >
+          </div>
+          <span class="form-error" id="err-username"></span>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label class="form-label" for="password">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            รหัสผ่าน
+          </label>
+          <div class="input-group" style="position:relative;">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input
+              type="password" id="password" name="password"
+              class="form-control has-icon-right" placeholder="กรอกรหัสผ่าน"
+              autocomplete="current-password"
+              maxlength="64"
+            >
+            <button type="button" class="pwd-toggle" id="pwd-toggle" onclick="togglePwd()" aria-label="แสดง/ซ่อนรหัสผ่าน">
+              <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <span class="form-error" id="err-password"></span>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" id="btn-login" class="btn-login" onclick="handleLogin()">
+          <span id="btn-login-text">เข้าสู่ระบบ</span>
+        </button>
+      </form>
+
+      <!-- Footer -->
+      <div class="login-footer">
+        ลืมรหัสผ่าน? ติดต่อ
+        <a href="#">ผู้ดูแลระบบ</a>
+      </div>
+    </div>
+
+    <!-- Version -->
+    <div class="version-tag">v1.0.0 · E-Sarabun DMS</div>
+  </div>
+
+  <!-- SweetAlert2 theme + JS -->
+  <style>
+    .swal2-popup { font-family: 'Sarabun', sans-serif !important; border-radius: 20px !important; }
+    .swal2-title, .swal2-html-container { font-family: 'Sarabun', sans-serif !important; }
+    .swal2-confirm, .swal2-cancel { border-radius: 9999px !important; font-weight: 600 !important; font-family: 'Sarabun', sans-serif !important; }
+  </style>
+
+  <?!= include('JavaScript') ?>
+
+  <script>
+    // ─── Password Toggle ────────────────────────────────────────
+    function togglePwd() {
+      const pwd  = document.getElementById('password');
+      const icon = document.getElementById('eye-icon');
+      const isText = pwd.type === 'text';
+      pwd.type = isText ? 'password' : 'text';
+      icon.innerHTML = isText
+        ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
+        : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    }
+
+    // ─── Login Handler ─────────────────────────────────────────
+    async function handleLogin() {
+      const form      = document.getElementById('login-form');
+      const username  = document.getElementById('username').value.trim();
+      const password  = document.getElementById('password').value;
+      const btn       = document.getElementById('btn-login');
+      const btnText   = document.getElementById('btn-login-text');
+
+      // ─── Validation ───
+      let valid = true;
+
+      // Username
+      const uEl   = document.getElementById('username');
+      const uErr  = document.getElementById('err-username');
+      if (!username) {
+        showFieldError(uEl, uErr, 'กรุณากรอกชื่อผู้ใช้');
+        valid = false;
+      } else if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+        showFieldError(uEl, uErr, 'Username ต้องเป็นตัวอักษร/ตัวเลข 3-30 ตัว');
+        valid = false;
+      } else {
+        clearFieldError(uEl, uErr);
+      }
+
+      // Password
+      const pEl  = document.getElementById('password');
+      const pErr = document.getElementById('err-password');
+      if (!password) {
+        showFieldError(pEl, pErr, 'กรุณากรอกรหัสผ่าน');
+        valid = false;
+      } else if (password.length < 8) {
+        showFieldError(pEl, pErr, 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+        valid = false;
+      } else {
+        clearFieldError(pEl, pErr);
+      }
+
+      if (!valid) {
+        // Shake animation
+        const card = document.querySelector('.login-card');
+        card.style.animation = 'none';
+        card.offsetHeight; // reflow
+        card.style.animation = 'shake 0.4s ease';
+        return;
+      }
+
+      // ─── Submit ───
+      App.setLoading(btn, true);
+      btnText.textContent = '';
+
+      try {
+        const res = await API.login(username, password);
+
+        if (res && res.success) {
+          // Success
+          btn.style.background = 'linear-gradient(135deg, #059669, #10b981)';
+          btnText.textContent = '✓ กำลังเข้าสู่ระบบ...';
+          btn.classList.remove('loading');
+          btn.disabled = false;
+
+          await Swal.fire({
+            icon: 'success',
+            title: 'ยินดีต้อนรับ!',
+            html: `<b>${App.escHtml(res.data.session.displayName)}</b><br>
+                   <small style="color:#6b7280">${getRoleLabel(res.data.session.role)}</small>`,
+            showConfirmButton: false,
+            timer: 1500,
+            timerProgressBar: true,
+          });
+
+          // Navigate to dashboard
+          google.script.run.withSuccessHandler(url => {
+            window.location.href = url + '?page=dashboard';
+          }).getAppUrl();
+
+        } else {
+          App.setLoading(btn, false);
+          btnText.textContent = 'เข้าสู่ระบบ';
+
+          await Swal.fire({
+            icon: 'error',
+            title: 'เข้าสู่ระบบไม่สำเร็จ',
+            text: res ? res.message : 'เกิดข้อผิดพลาด กรุณาลองใหม่',
+            confirmButtonText: 'ตกลง',
+            confirmButtonColor: '#2563eb',
+          });
+
+          // Highlight fields
+          document.getElementById('password').value = '';
+          document.getElementById('password').focus();
+        }
+
+      } catch (e) {
+        App.setLoading(btn, false);
+        btnText.textContent = 'เข้าสู่ระบบ';
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่อีกครั้ง',
+          confirmButtonColor: '#2563eb',
+        });
+      }
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────
+    function showFieldError(input, errEl, msg) {
+      input.classList.add('is-invalid');
+      input.classList.remove('is-valid');
+      errEl.textContent = msg;
+      errEl.classList.add('show');
+    }
+
+    function clearFieldError(input, errEl) {
+      input.classList.remove('is-invalid');
+      input.classList.add('is-valid');
+      errEl.classList.remove('show');
+    }
+
+    function getRoleLabel(role) {
+      const m = { officer:'เจ้าหน้าที่', dept_head:'หัวหน้าฝ่าย', asst_manager:'ผู้ช่วยผู้จัดการ', manager:'ผู้จัดการ' };
+      return m[role] || role;
+    }
+
+    // Clear errors on input
+    document.getElementById('username').addEventListener('input', function() {
+      if (this.value.trim()) clearFieldError(this, document.getElementById('err-username'));
+    });
+    document.getElementById('password').addEventListener('input', function() {
+      if (this.value) clearFieldError(this, document.getElementById('err-password'));
+    });
+
+    // Enter key submit
+    document.getElementById('password').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+    document.getElementById('username').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('password').focus();
+    });
+
+    // ─── Shake animation ──────────────────────────────────────
+    const shakeStyle = document.createElement('style');
+    shakeStyle.textContent = `
+      @keyframes shake {
+        0%,100%{ transform: translateX(0) scale(1); }
+        20%     { transform: translateX(-8px) scale(1.01); }
+        40%     { transform: translateX(8px) scale(1.01); }
+        60%     { transform: translateX(-5px); }
+        80%     { transform: translateX(5px); }
+      }
+    `;
+    document.head.appendChild(shakeStyle);
+
+    // ─── Floating particles ───────────────────────────────────
+    (function createParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 12; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        const size = Math.random() * 8 + 4;
+        p.style.cssText = `
+          width:${size}px; height:${size}px;
+          left:${Math.random()*100}%;
+          animation-duration:${Math.random()*10+8}s;
+          animation-delay:${Math.random()*8}s;
+          opacity:${Math.random()*0.4+0.1};
+        `;
+        container.appendChild(p);
+      }
+    })();
+  </script>
+</body>
+</html>
