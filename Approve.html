@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>งานรอดำเนินการ — E-Sarabun</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <?!= include('Stylesheet') ?>
+  <style>
+    /* ── Layout ──────────────────────────────────────────────── */
+    .approve-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 20px;
+      height: calc(100vh - 120px);
+      overflow: hidden;
+    }
+    @media (max-width: 900px) {
+      .approve-layout { grid-template-columns: 1fr; height: auto; }
+    }
+
+    /* ── Left Panel — Pending List ───────────────────────────── */
+    .pending-panel {
+      background: var(--c-bg-card);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--c-border);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .pending-header {
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid var(--c-border);
+      background: linear-gradient(135deg, #eff6ff, #dbeafe);
+      flex-shrink: 0;
+    }
+    .pending-header h2 {
+      font-size: 1rem; font-weight: 700;
+      color: var(--c-primary); margin: 0 0 4px 0;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pending-count-badge {
+      background: var(--c-primary); color: #fff;
+      font-size: 0.7rem; font-weight: 700;
+      padding: 2px 8px; border-radius: 999px;
+      min-width: 22px; text-align: center;
+    }
+    .pending-list {
+      flex: 1; overflow-y: auto; padding: 8px;
+    }
+    .pending-item {
+      padding: 12px 14px;
+      border-radius: var(--r-lg);
+      cursor: pointer;
+      transition: all var(--tr-fast);
+      border: 1.5px solid transparent;
+      margin-bottom: 4px;
+    }
+    .pending-item:hover { background: #eff6ff; border-color: #bfdbfe; }
+    .pending-item.active {
+      background: #dbeafe;
+      border-color: var(--c-primary);
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.12);
+    }
+    .pending-item-no    { font-size: 0.72rem; color: var(--c-text-muted); font-weight: 600; }
+    .pending-item-subj  { font-size: 0.875rem; font-weight: 700; color: var(--c-text); margin: 2px 0; line-height: 1.3; }
+    .pending-item-meta  { font-size: 0.72rem; color: var(--c-text-muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+    .pending-item-type-badge {
+      font-size: 0.65rem; font-weight: 600; padding: 1px 6px;
+      border-radius: 999px; flex-shrink: 0;
+    }
+
+    .step-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 0.7rem; font-weight: 600; padding: 2px 8px;
+      border-radius: 999px; background: #ede9fe; color: #5b21b6;
+      flex-shrink: 0;
+    }
+
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; flex: 1;
+      color: var(--c-text-muted); gap: 10px; padding: 40px 20px;
+    }
+    .empty-state-icon { font-size: 3rem; opacity: 0.4; }
+    .empty-state-text { font-size: 0.9rem; text-align: center; }
+
+    /* ── Right Panel — Detail ────────────────────────────────── */
+    .detail-panel {
+      display: flex; flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      padding-bottom: 16px;
+    }
+
+    .detail-placeholder {
+      background: var(--c-bg-card);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--c-border);
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 12px;
+      color: var(--c-text-muted); height: 100%;
+      padding: 40px;
+    }
+    .detail-placeholder-icon { font-size: 3.5rem; opacity: 0.25; }
+
+    /* Doc header card */
+    .doc-header-card {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      border-radius: var(--r-xl);
+      padding: 20px 24px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .doc-badge-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+    .doc-number   { font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+    .doc-subject  { font-size: 1.1rem; font-weight: 800; line-height: 1.3; }
+    .doc-meta-row { display: flex; gap: 16px; margin-top: 8px; flex-wrap: wrap; }
+    .doc-meta-item { font-size: 0.78rem; color: rgba(255,255,255,0.75); display: flex; align-items: center; gap: 5px; }
+
+    /* Info grid */
+    .info-card {
+      background: var(--c-bg-card);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--c-border);
+      padding: 18px 20px;
+    }
+    .info-card h3 {
+      font-size: 0.85rem; font-weight: 700; color: var(--c-primary);
+      margin: 0 0 14px 0;
+      padding-bottom: 8px; border-bottom: 1px solid var(--c-border);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 12px; }
+    .info-row  { display: flex; flex-direction: column; gap: 2px; }
+    .info-label { font-size: 0.7rem; color: var(--c-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    .info-value { font-size: 0.875rem; font-weight: 600; color: var(--c-text); }
+
+    /* Workflow timeline */
+    .wf-timeline { display: flex; flex-direction: column; gap: 0; }
+    .wf-step {
+      display: flex; gap: 14px; align-items: flex-start;
+      padding: 12px 0;
+      position: relative;
+    }
+    .wf-step:not(:last-child)::after {
+      content: ''; position: absolute;
+      left: 17px; top: 42px;
+      width: 2px; height: calc(100% - 18px);
+      background: var(--c-border);
+    }
+    .wf-step-icon {
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem; flex-shrink: 0; z-index: 1;
+      border: 2px solid;
+    }
+    .wf-step-icon.approved  { background: #d1fae5; border-color: #10b981; color: #065f46; }
+    .wf-step-icon.pending   { background: #dbeafe; border-color: var(--c-primary); color: var(--c-primary); }
+    .wf-step-icon.waiting   { background: #f3f4f6; border-color: #d1d5db; color: #9ca3af; }
+    .wf-step-icon.rejected  { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+    .wf-step-body { flex: 1; }
+    .wf-step-label { font-size: 0.875rem; font-weight: 700; color: var(--c-text); }
+    .wf-step-role  { font-size: 0.72rem; color: var(--c-text-muted); margin-top: 1px; }
+    .wf-step-signed {
+      font-size: 0.72rem; margin-top: 4px;
+      background: #f0fdf4; color: #065f46;
+      padding: 3px 8px; border-radius: var(--r-sm);
+      display: inline-block;
+    }
+    .wf-step-rejected-note {
+      font-size: 0.72rem; margin-top: 4px;
+      background: #fef2f2; color: #991b1b;
+      padding: 3px 8px; border-radius: var(--r-sm);
+      display: inline-block;
+    }
+    .wf-step-pending-pill {
+      font-size: 0.65rem; font-weight: 700;
+      background: #dbeafe; color: var(--c-primary);
+      padding: 2px 8px; border-radius: 999px;
+      margin-left: 8px; animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+
+    /* Acknowledge list inside step */
+    .ack-depts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .ack-dept-item {
+      font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; font-weight: 600;
+    }
+    .ack-dept-item.done   { background: #d1fae5; color: #065f46; }
+    .ack-dept-item.pending { background: #fef9c3; color: #854d0e; }
+
+    /* File preview */
+    .preview-frame {
+      width: 100%; height: 500px;
+      border-radius: var(--r-lg);
+      border: none;
+      background: #f3f4f6;
+    }
+    .no-preview {
+      height: 120px; display: flex; align-items: center; justify-content: center;
+      background: var(--c-bg); border-radius: var(--r-lg);
+      color: var(--c-text-muted); font-size: 0.875rem; gap: 8px;
+    }
+
+    /* Action bar */
+    .action-bar {
+      background: var(--c-bg-card);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--c-border);
+      padding: 18px 20px;
+    }
+    .action-bar h3 {
+      font-size: 0.85rem; font-weight: 700; color: var(--c-text);
+      margin: 0 0 14px 0;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .action-buttons { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn-approve {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #fff; border: none; border-radius: var(--r-lg);
+      padding: 10px 24px; font-size: 0.875rem; font-weight: 700;
+      cursor: pointer; transition: all var(--tr-fast);
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font);
+    }
+    .btn-approve:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(5,150,105,0.4); }
+    .btn-approve:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-reject {
+      background: #fff; color: #dc2626;
+      border: 1.5px solid #fca5a5; border-radius: var(--r-lg);
+      padding: 10px 24px; font-size: 0.875rem; font-weight: 700;
+      cursor: pointer; transition: all var(--tr-fast);
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font);
+    }
+    .btn-reject:hover { background: #fef2f2; border-color: #dc2626; transform: translateY(-1px); }
+    .btn-reject:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-ack {
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      color: #fff; border: none; border-radius: var(--r-lg);
+      padding: 10px 24px; font-size: 0.875rem; font-weight: 700;
+      cursor: pointer; transition: all var(--tr-fast);
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font);
+    }
+    .btn-ack:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
+    .btn-ack:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Activity log */
+    .log-list { display: flex; flex-direction: column; gap: 6px; }
+    .log-item {
+      display: flex; gap: 10px; align-items: flex-start;
+      font-size: 0.78rem; padding: 6px 0;
+      border-bottom: 1px dashed var(--c-border);
+    }
+    .log-item:last-child { border-bottom: none; }
+    .log-time  { color: var(--c-text-muted); white-space: nowrap; flex-shrink: 0; }
+    .log-user  { font-weight: 700; color: var(--c-primary); flex-shrink: 0; }
+    .log-action { color: var(--c-text); flex: 1; }
+  </style>
+</head>
+<body>
+<?!= include('JavaScript') ?>
+<script>
+// ── State ──────────────────────────────────────────────────────
+let session       = null;
+let pendingDocs   = [];
+let activeDocId   = null;
+let activeDetail  = null;
+
+// ── Init ───────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  Nav.init();
+
+  session = await new Promise(r => google.script.run
+    .withSuccessHandler(r).withFailureHandler(() => r(null))
+    .getSessionData());
+
+  if (!session) { Nav.go('login'); return; }
+
+  renderUserInfo();
+  loadPendingDocs();
+});
+
+function renderUserInfo() {
+  const el = document.getElementById('userInfo');
+  if (!el || !session) return;
+  el.innerHTML = `
+    <span class="badge-role">${App.escHtml(session.displayName || session.username)}</span>
+    <span style="color:var(--c-text-muted);font-size:0.78rem">${App.escHtml(session.department || '')}</span>`;
+}
+
+// ── Load Pending Docs ──────────────────────────────────────────
+function loadPendingDocs() {
+  const listEl = document.getElementById('pendingList');
+  listEl.innerHTML = '<div class="empty-state"><span class="empty-state-icon">⏳</span><span class="empty-state-text">กำลังโหลด...</span></div>';
+
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!res || !res.success) {
+        listEl.innerHTML = `<div class="empty-state"><span class="empty-state-icon">⚠️</span><span class="empty-state-text">${App.escHtml(res?.message || 'โหลดไม่สำเร็จ')}</span></div>`;
+        return;
+      }
+      pendingDocs = res.data || [];
+      renderPendingList();
+    })
+    .withFailureHandler(err => {
+      listEl.innerHTML = `<div class="empty-state"><span class="empty-state-icon">❌</span><span class="empty-state-text">${App.escHtml(err.message)}</span></div>`;
+    })
+    .getPendingDocsForUser();
+}
+
+function renderPendingList() {
+  const listEl  = document.getElementById('pendingList');
+  const countEl = document.getElementById('pendingCount');
+  countEl.textContent = pendingDocs.length;
+
+  if (pendingDocs.length === 0) {
+    listEl.innerHTML = `
+      <div class="empty-state">
+        <span class="empty-state-icon">✅</span>
+        <span class="empty-state-text">ไม่มีเอกสารรอดำเนินการ</span>
+      </div>`;
+    return;
+  }
+
+  listEl.innerHTML = pendingDocs.map(doc => {
+    const isActive = doc.id === activeDocId;
+    const typeLabel = doc.docType === 'internal' ? 'ภายใน' : 'ภายนอก';
+    const typeColor = doc.docType === 'internal' ? 'background:#dbeafe;color:#1d4ed8' : 'background:#fce7f3;color:#be185d';
+    const urgColor  = doc.urgency === 'ด่วนมาก' ? '#dc2626' : doc.urgency === 'ด่วน' ? '#d97706' : '';
+    return `
+      <div class="pending-item ${isActive ? 'active' : ''}" onclick="selectDoc('${doc.id}')">
+        <div class="pending-item-meta">
+          <span class="pending-item-type-badge" style="${typeColor}">${App.escHtml(typeLabel)}</span>
+          <span class="pending-item-no">${App.escHtml(doc.docNo)}</span>
+          ${doc.urgency ? `<span style="color:${urgColor};font-weight:700;font-size:0.7rem">${App.escHtml(doc.urgency)}</span>` : ''}
+        </div>
+        <div class="pending-item-subj">${App.escHtml(doc.subject)}</div>
+        <div class="pending-item-meta">
+          <span class="step-chip">⚙️ ${App.escHtml(doc.stepLabel)}</span>
+          <span>${App.escHtml(_formatDateTH(doc.updateAt))}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Select Doc → Load Detail ───────────────────────────────────
+function selectDoc(docId) {
+  activeDocId = docId;
+  renderPendingList(); // re-render to update active state
+
+  const detailEl = document.getElementById('detailPanel');
+  detailEl.innerHTML = `
+    <div class="detail-placeholder">
+      <span class="detail-placeholder-icon">⏳</span>
+      <span>กำลังโหลดรายละเอียด...</span>
+    </div>`;
+
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!res || !res.success) {
+        detailEl.innerHTML = `<div class="detail-placeholder"><span>⚠️ ${App.escHtml(res?.message || 'โหลดไม่สำเร็จ')}</span></div>`;
+        return;
+      }
+      activeDetail = res.data;
+      renderDetail(activeDetail);
+    })
+    .withFailureHandler(err => {
+      detailEl.innerHTML = `<div class="detail-placeholder"><span>❌ ${App.escHtml(err.message)}</span></div>`;
+    })
+    .getDocDetailForApprove(docId);
+}
+
+// ── Render Detail ──────────────────────────────────────────────
+function renderDetail(doc) {
+  const detailEl = document.getElementById('detailPanel');
+
+  const wf          = doc.workflow || { steps: [] };
+  const pendingStep = wf.steps?.find(s => s.status === 'pending');
+  const isAck       = pendingStep?.action === 'acknowledge';
+
+  detailEl.innerHTML = `
+    <!-- Doc Header -->
+    <div class="doc-header-card">
+      <div class="doc-badge-row">
+        ${App.docTypeBadge ? App.docTypeBadge(doc.docType) : ''}
+        <span class="doc-number">${App.escHtml(doc.docNo)}</span>
+        ${doc.urgency ? `<span style="background:rgba(220,38,38,0.25);color:#fca5a5;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:999px">${App.escHtml(doc.urgency)}</span>` : ''}
+        ${doc.secrecy ? `<span style="background:rgba(249,115,22,0.25);color:#fdba74;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:999px">${App.escHtml(doc.secrecy)}</span>` : ''}
+      </div>
+      <div class="doc-subject">${App.escHtml(doc.subject)}</div>
+      <div class="doc-meta-row">
+        <span class="doc-meta-item">📤 ${App.escHtml(doc.sender || '-')}</span>
+        <span class="doc-meta-item">📥 ${App.escHtml(doc.receiver || '-')}</span>
+        <span class="doc-meta-item">📅 ${App.escHtml(_formatDateTH(doc.date || doc.createdAt))}</span>
+        <span class="doc-meta-item">👤 ${App.escHtml(doc.createdBy)}</span>
+      </div>
+    </div>
+
+    <!-- Info Grid -->
+    <div class="info-card">
+      <h3>📋 ข้อมูลเอกสาร</h3>
+      <div class="info-grid">
+        <div class="info-row">
+          <span class="info-label">ฝ่ายที่เกี่ยวข้อง</span>
+          <span class="info-value">${_renderDepts(doc.assignedDepts)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">สถานะ</span>
+          <span class="info-value">${App.statusBadge ? App.statusBadge(doc.status) : App.escHtml(doc.status)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">ขั้นตอนปัจจุบัน</span>
+          <span class="info-value">${pendingStep ? `<span class="step-chip">⚙️ ${App.escHtml(pendingStep.label)}</span>` : '-'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">อัปเดตล่าสุด</span>
+          <span class="info-value">${App.escHtml(_formatDateTimeTH(doc.updateAt))}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workflow Timeline -->
+    <div class="info-card">
+      <h3>🔄 ขั้นตอนการดำเนินการ</h3>
+      <div class="wf-timeline">
+        ${_renderWorkflowTimeline(wf)}
+      </div>
+    </div>
+
+    <!-- File Preview -->
+    <div class="info-card">
+      <h3>📄 ไฟล์เอกสาร
+        ${doc.fileId ? `<a href="https://drive.google.com/file/d/${doc.fileId}/view" target="_blank" style="font-size:0.75rem;font-weight:500;color:var(--c-primary);margin-left:auto">เปิดใน Drive ↗</a>` : ''}
+      </h3>
+      ${doc.previewUrl
+        ? `<iframe src="${doc.previewUrl}" class="preview-frame" title="ตัวอย่างเอกสาร"></iframe>`
+        : `<div class="no-preview">📄 ไม่มีไฟล์แนบ หรือไม่รองรับการแสดงผล</div>`}
+    </div>
+
+    <!-- Action Bar -->
+    <div class="action-bar" id="actionBar">
+      <h3>✍️ ดำเนินการ</h3>
+      <div class="action-buttons">
+        ${_renderActionButtons(pendingStep, isAck)}
+      </div>
+    </div>
+
+    <!-- Activity Log -->
+    ${doc.logs && doc.logs.length > 0 ? `
+    <div class="info-card">
+      <h3>📜 ประวัติการดำเนินการ</h3>
+      <div class="log-list">
+        ${doc.logs.map(log => `
+          <div class="log-item">
+            <span class="log-time">${App.escHtml(_formatDateTimeTH(log.time))}</span>
+            <span class="log-user">${App.escHtml(log.user)}</span>
+            <span class="log-action">${App.escHtml(log.action)}${log.detail ? ` — ${App.escHtml(log.detail)}` : ''}</span>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
+  `;
+}
+
+// ── Render Helpers ─────────────────────────────────────────────
+function _renderWorkflowTimeline(wf) {
+  if (!wf || !wf.steps || wf.steps.length === 0) return '<p style="color:var(--c-text-muted);font-size:0.85rem">ไม่พบข้อมูล Workflow</p>';
+
+  const icons = { approved: '✓', pending: '⏳', waiting: '–', rejected: '✕' };
+
+  return wf.steps.map(step => {
+    const icon = icons[step.status] || '–';
+    let signedHtml = '';
+
+    if (step.action === 'acknowledge') {
+      const assignedDepts = step.assignedDepts || [];
+      const acknowledgedDepts = (step.acknowledgedBy || []).map(a => a.dept);
+      signedHtml = assignedDepts.length > 0
+        ? `<div class="ack-depts">
+            ${assignedDepts.map(d => `
+              <span class="ack-dept-item ${acknowledgedDepts.includes(d) ? 'done' : 'pending'}">
+                ${acknowledgedDepts.includes(d) ? '✓' : '⏳'} ${App.escHtml(d)}
+              </span>`).join('')}
+           </div>`
+        : '';
+    } else if (step.signedBy) {
+      signedHtml = `<span class="wf-step-signed">✓ ${App.escHtml(step.signedBy)} — ${App.escHtml(_formatDateTimeTH(step.signedAt))}</span>`;
+    } else if (step.status === 'rejected' && step.remark) {
+      signedHtml = `<span class="wf-step-rejected-note">✕ ${App.escHtml(step.remark)}</span>`;
+    }
+
+    const roleLabels = { officer: 'เจ้าหน้าที่', dept_head: 'หัวหน้าฝ่าย', asst_manager: 'ผู้ช่วยผู้จัดการ', manager: 'ผู้จัดการ' };
+    const roleLabel  = roleLabels[step.role] || step.role;
+    const deptLabel  = step.dept ? ` | ${step.dept}` : (step.assignedDepts?.length ? ` | ${step.assignedDepts.join(', ')}` : '');
+
+    return `
+      <div class="wf-step">
+        <span class="wf-step-icon ${step.status}">${icon}</span>
+        <div class="wf-step-body">
+          <div class="wf-step-label">
+            ขั้นที่ ${step.step}: ${App.escHtml(step.label)}
+            ${step.status === 'pending' ? '<span class="wf-step-pending-pill">รอดำเนินการ</span>' : ''}
+          </div>
+          <div class="wf-step-role">${roleLabel}${deptLabel}</div>
+          ${signedHtml}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function _renderActionButtons(pendingStep, isAck) {
+  if (!pendingStep) {
+    return `<span style="color:var(--c-text-muted);font-size:0.875rem">ไม่มีขั้นตอนรอดำเนินการ</span>`;
+  }
+
+  if (isAck) {
+    return `
+      <button class="btn-ack" onclick="doAcknowledge()">
+        ✅ รับทราบเอกสาร
+      </button>`;
+  }
+
+  return `
+    <button class="btn-approve" onclick="doApprove()">
+      ✅ ${pendingStep.action === 'sign' ? 'ลงนาม' : 'อนุมัติ'}
+    </button>
+    <button class="btn-reject" onclick="doReject(false)">
+      ✕ ปฏิเสธ
+    </button>
+    <button class="btn-reject" onclick="doReject(true)" style="border-color:#fed7aa;color:#c2410c">
+      ↩ ส่งคืนผู้สร้าง
+    </button>`;
+}
+
+function _renderDepts(depts) {
+  if (!depts || depts.length === 0) return '-';
+  return depts.map(d => `<span style="background:#eff6ff;color:#1d4ed8;padding:1px 6px;border-radius:999px;font-size:0.78rem;font-weight:600">${App.escHtml(d)}</span>`).join(' ');
+}
+
+// ── Actions ────────────────────────────────────────────────────
+async function doApprove() {
+  if (!activeDocId) return;
+
+  const { value: remark } = await Swal.fire({
+    title: 'ยืนยันการอนุมัติ / ลงนาม',
+    input: 'textarea',
+    inputLabel: 'หมายเหตุ (ถ้ามี)',
+    inputPlaceholder: 'ระบุหมายเหตุประกอบการอนุมัติ...',
+    inputAttributes: { rows: 3 },
+    showCancelButton: true,
+    confirmButtonText: '✅ ยืนยัน',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#059669',
+    customClass: { popup: 'swal-thai' }
+  });
+
+  if (typeof remark === 'undefined') return; // cancelled
+
+  _setActionBtnsDisabled(true);
+  Swal2.loading('กำลังบันทึก...');
+
+  google.script.run
+    .withSuccessHandler(res => {
+      Swal2.close();
+      _setActionBtnsDisabled(false);
+      if (res && res.success) {
+        Swal2.success(res.message || 'ดำเนินการสำเร็จ');
+        activeDocId = null;
+        activeDetail = null;
+        loadPendingDocs();
+        document.getElementById('detailPanel').innerHTML = `
+          <div class="detail-placeholder">
+            <span class="detail-placeholder-icon">✅</span>
+            <span>ดำเนินการเสร็จสิ้น — เลือกเอกสารถัดไป</span>
+          </div>`;
+      } else {
+        Swal2.error(res?.message || 'เกิดข้อผิดพลาด');
+      }
+    })
+    .withFailureHandler(err => {
+      Swal2.close();
+      _setActionBtnsDisabled(false);
+      Swal2.error(err.message);
+    })
+    .approveDocument(activeDocId, remark || '');
+}
+
+async function doReject(returnToCreator) {
+  if (!activeDocId) return;
+
+  const label   = returnToCreator ? 'ส่งคืนผู้สร้างเพื่อแก้ไข' : 'ปฏิเสธเอกสาร';
+  const btnColor = returnToCreator ? '#c2410c' : '#dc2626';
+
+  const { value: remark } = await Swal.fire({
+    title: label,
+    input: 'textarea',
+    inputLabel: 'เหตุผล (จำเป็น)',
+    inputPlaceholder: 'ระบุเหตุผลที่ปฏิเสธ / ต้องการให้แก้ไข...',
+    inputAttributes: { rows: 4 },
+    inputValidator: v => { if (!v || !v.trim()) return 'กรุณาระบุเหตุผล'; },
+    showCancelButton: true,
+    confirmButtonText: `✕ ${label}`,
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: btnColor,
+    customClass: { popup: 'swal-thai' }
+  });
+
+  if (!remark) return;
+
+  _setActionBtnsDisabled(true);
+  Swal2.loading('กำลังบันทึก...');
+
+  google.script.run
+    .withSuccessHandler(res => {
+      Swal2.close();
+      _setActionBtnsDisabled(false);
+      if (res && res.success) {
+        Swal2.success(res.message || 'บันทึกเรียบร้อย');
+        activeDocId = null;
+        activeDetail = null;
+        loadPendingDocs();
+        document.getElementById('detailPanel').innerHTML = `
+          <div class="detail-placeholder">
+            <span class="detail-placeholder-icon">✅</span>
+            <span>ดำเนินการเสร็จสิ้น — เลือกเอกสารถัดไป</span>
+          </div>`;
+      } else {
+        Swal2.error(res?.message || 'เกิดข้อผิดพลาด');
+      }
+    })
+    .withFailureHandler(err => {
+      Swal2.close();
+      _setActionBtnsDisabled(false);
+      Swal2.error(err.message);
+    })
+    .rejectDocument(activeDocId, remark, returnToCreator);
+}
+
+async function doAcknowledge() {
+  if (!activeDocId) return;
+
+  const { value: remark } = await Swal.fire({
+    title: 'รับทราบเอกสาร',
+    input: 'textarea',
+    inputLabel: 'หมายเหตุ (ถ้ามี)',
+    inputPlaceholder: 'ระบุหมายเหตุประกอบการรับทราบ...',
+    inputAttributes: { rows: 3 },
+    showCancelButton: true,
+    confirmButtonText: '✅ รับทราบ',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#2563eb',
+    customClass: { popup: 'swal-thai' }
+  });
+
+  if (typeof remark === 'undefined') return;
+
+  _setActionBtnsDisabled(true);
+  Swal2.loading('กำลังบันทึก...');
+
+  google.script.run
+    .withSuccessHandler(res => {
+      Swal2.close();
+      _setActionBtnsDisabled(false);
+      if (res && res.success) {
+        Swal2.success(res.message || 'รับทราบแล้ว');
+        activeDocId = null;
+        activeDetail = null;
+        loadPendingDocs();
+        document.getElementById('detailPanel').innerHTML = `
+          <div class="detail-placeholder">
+            <span class="detail-placeholder-icon">✅</span>
+            <span>รับทราบเรียบร้อย — เลือกเอกสารถัดไป</span>
+          </div>`;
+      } else {
+        Swal2.error(res?.message || 'เกิดข้อผิดพลาด');
+      }
+    })
+    .withFailureHandler(err => {
+      Swal2.close();
+      _setActionBtnsDisabled(false);
+      Swal2.error(err.message);
+    })
+    .acknowledgeDocument(activeDocId, remark || '');
+}
+
+function _setActionBtnsDisabled(disabled) {
+  document.querySelectorAll('.btn-approve, .btn-reject, .btn-ack').forEach(b => b.disabled = disabled);
+}
+
+// ── Date Formatters ────────────────────────────────────────────
+function _formatDateTH(str) {
+  if (!str) return '-';
+  try {
+    const d = new Date(str);
+    return d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch { return str; }
+}
+function _formatDateTimeTH(str) {
+  if (!str) return '-';
+  try {
+    const d = new Date(str);
+    return d.toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch { return str; }
+}
+</script>
+
+<!-- ── Page Shell ─────────────────────────────────────────────── -->
+<div id="app">
+
+  <!-- Nav Bar -->
+  <header class="topbar">
+    <div class="topbar-brand" onclick="Nav.go('dashboard')">
+      <span class="topbar-logo">📋</span>
+      <span class="topbar-title">E-Sarabun</span>
+    </div>
+    <nav class="topbar-nav" id="topbarNav"></nav>
+    <div class="topbar-right">
+      <div id="userInfo" class="topbar-user" style="display:flex;align-items:center;gap:8px"></div>
+      <button class="btn btn-sm btn-ghost" onclick="Nav.go('dashboard')">🏠 หน้าหลัก</button>
+      <button class="btn btn-sm btn-ghost" id="notifBtn" onclick="NotifManager?.toggle()">🔔</button>
+    </div>
+  </header>
+
+  <!-- Page Content -->
+  <main class="main-content">
+
+    <!-- Page Title -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <h1 style="font-size:1.35rem;font-weight:800;color:var(--c-primary);margin:0">
+          ✍️ งานรอดำเนินการ
+        </h1>
+        <p style="font-size:0.85rem;color:var(--c-text-muted);margin:4px 0 0 0">
+          เอกสารที่รอการลงนาม / อนุมัติ / รับทราบ โดยคุณ
+        </p>
+      </div>
+      <button class="btn btn-outline" onclick="loadPendingDocs()" style="flex-shrink:0">
+        🔄 รีเฟรช
+      </button>
+    </div>
+
+    <!-- Two-Panel Layout -->
+    <div class="approve-layout">
+
+      <!-- Left – Pending List -->
+      <aside class="pending-panel">
+        <div class="pending-header">
+          <h2>
+            📂 รายการรอดำเนินการ
+            <span class="pending-count-badge" id="pendingCount">0</span>
+          </h2>
+          <p style="font-size:0.72rem;color:var(--c-text-muted);margin:0">คลิกเพื่อดูรายละเอียด</p>
+        </div>
+        <div class="pending-list" id="pendingList">
+          <div class="empty-state">
+            <span class="empty-state-icon">⏳</span>
+            <span class="empty-state-text">กำลังโหลด...</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right – Detail Panel -->
+      <section class="detail-panel" id="detailPanel">
+        <div class="detail-placeholder">
+          <span class="detail-placeholder-icon">👈</span>
+          <span style="font-size:0.95rem;font-weight:600;color:var(--c-text-muted)">
+            เลือกเอกสารจากรายการทางซ้าย
+          </span>
+          <span style="font-size:0.8rem;color:var(--c-text-muted)">
+            เพื่อตรวจสอบและดำเนินการ
+          </span>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+</body>
+</html>

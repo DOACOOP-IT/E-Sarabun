@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สร้างเอกสารภายใน — E-Sarabun</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <?!= include('Stylesheet') ?>
+  <style>
+    /* ── CreateInternal-specific styles ─────────────────────── */
+
+    /* ── Stepper ─────────────────────────────────────────────── */
+    .stepper {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      margin-bottom: 32px;
+      position: relative;
+    }
+    .stepper::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      height: 2px;
+      background: var(--c-border);
+      z-index: 0;
+    }
+    .step-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      z-index: 1;
+    }
+    .step-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+      font-weight: 700;
+      border: 2px solid var(--c-border);
+      background: var(--c-bg-card);
+      color: var(--c-text-muted);
+      transition: all var(--tr-base);
+    }
+    .step-item.active .step-circle {
+      background: var(--c-primary);
+      border-color: var(--c-primary);
+      color: #fff;
+      box-shadow: 0 0 0 4px var(--c-primary-light);
+    }
+    .step-item.completed .step-circle {
+      background: var(--c-success);
+      border-color: var(--c-success);
+      color: #fff;
+    }
+    .step-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--c-text-muted);
+      text-align: center;
+      white-space: nowrap;
+    }
+    .step-item.active   .step-label { color: var(--c-primary);  }
+    .step-item.completed .step-label { color: var(--c-success); }
+
+    /* ── Form Sections (Steps) ───────────────────────────────── */
+    .form-section { display: none; }
+    .form-section.visible { display: block; }
+
+    /* ── Doc Number Display ──────────────────────────────────── */
+    .doc-no-display {
+      background: linear-gradient(135deg, var(--c-primary-pale) 0%, var(--c-primary-light) 100%);
+      border: 2px solid var(--c-primary-light);
+      border-radius: var(--r-xl);
+      padding: 20px 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 16px;
+      min-height: 80px;
+    }
+    .doc-no-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--r-md);
+      background: var(--c-primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+    .doc-no-value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--c-primary-dark);
+      letter-spacing: 0.5px;
+      font-variant-numeric: tabular-nums;
+    }
+    .doc-no-placeholder {
+      font-size: 0.9rem;
+      color: var(--c-text-muted);
+      font-style: italic;
+    }
+
+    /* ── Dept Checkboxes ─────────────────────────────────────── */
+    .dept-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .dept-check-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1.5px solid var(--c-border);
+      border-radius: var(--r-md);
+      cursor: pointer;
+      transition: all var(--tr-base);
+      background: var(--c-bg-card);
+      user-select: none;
+    }
+    .dept-check-item:hover   { border-color: var(--c-primary-light); background: var(--c-primary-pale); }
+    .dept-check-item.checked { border-color: var(--c-primary); background: var(--c-primary-pale); }
+    .dept-check-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--c-primary); cursor: pointer; flex-shrink: 0; }
+    .dept-check-label { font-size: 0.875rem; font-weight: 600; color: var(--c-text); }
+
+    /* ── File Dropzone ───────────────────────────────────────── */
+    .dropzone {
+      border: 2px dashed var(--c-border);
+      border-radius: var(--r-xl);
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--tr-base);
+      background: var(--c-bg);
+      position: relative;
+    }
+    .dropzone:hover, .dropzone.drag-over {
+      border-color: var(--c-primary);
+      background: var(--c-primary-pale);
+    }
+    .dropzone.has-file {
+      border-color: var(--c-success);
+      background: var(--c-success-light);
+    }
+    .dropzone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .dropzone-icon    { font-size: 2.5rem; margin-bottom: 12px; }
+    .dropzone-title   { font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
+    .dropzone-sub     { font-size: 0.8rem; color: var(--c-text-muted); }
+    .dropzone-accept  { font-size: 0.75rem; color: var(--c-text-muted); margin-top: 8px; }
+
+    /* File preview card */
+    .file-preview {
+      display: none;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 20px;
+      background: var(--c-bg-card);
+      border: 1.5px solid var(--c-success);
+      border-radius: var(--r-lg);
+      margin-top: 12px;
+    }
+    .file-preview.show { display: flex; }
+    .file-preview-icon { font-size: 2rem; flex-shrink: 0; }
+    .file-preview-name { font-weight: 600; font-size: 0.9rem; word-break: break-all; }
+    .file-preview-size { font-size: 0.78rem; color: var(--c-text-muted); }
+    .file-preview-btn  { margin-left: auto; flex-shrink: 0; }
+
+    /* ── Info Alert ──────────────────────────────────────────── */
+    .info-alert {
+      background: var(--c-info-light);
+      border: 1px solid var(--c-info);
+      border-radius: var(--r-md);
+      padding: 12px 16px;
+      font-size: 0.85rem;
+      color: var(--c-info-text);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    /* ── Workflow Preview ────────────────────────────────────── */
+    .workflow-track {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .wf-node {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--r-pill);
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: var(--c-primary-light);
+      color: var(--c-primary-dark);
+      border: 1px solid var(--c-primary-light);
+    }
+    .wf-node.wf-done { background: var(--c-success-light); color: var(--c-success-text); border-color: var(--c-success-light); }
+    .wf-arrow { color: var(--c-text-muted); font-size: 0.75rem; }
+
+    /* ── Navigation Buttons ──────────────────────────────────── */
+    .form-nav-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid var(--c-border);
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .dept-grid { grid-template-columns: repeat(2, 1fr); }
+      .stepper::before { display: none; }
+    }
+    @media (max-width: 992px) {
+      #hamburger { display: flex !important; }
+      #sidebar-overlay { display: block !important; pointer-events: none; transition: opacity 0.2s; opacity: 0; }
+      #sidebar-overlay.show { pointer-events: all; opacity: 1; }
+    }
+
+    /* SweetAlert2 font override */
+    .swal2-popup              { font-family: 'Sarabun', sans-serif !important; border-radius: 20px !important; }
+    .swal2-confirm, .swal2-cancel { font-family: 'Sarabun', sans-serif !important; border-radius: 9999px !important; font-weight: 600 !important; }
+    .swal-toast-custom        { border-radius: 12px !important; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+
+    <div class="sidebar-header">
+      <div class="sidebar-logo">ส</div>
+      <div>
+        <div class="sidebar-title">E-Sarabun</div>
+        <div class="sidebar-subtitle">ระบบสารบรรณ</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+
+      <div class="nav-section-label">เมนูหลัก</div>
+
+      <a class="nav-item" data-page="dashboard" onclick="Nav.go('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        หน้าหลัก
+      </a>
+
+      <a class="nav-item" data-page="inbox" onclick="Nav.go('inbox')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+        กล่องงานค้าง
+        <span class="nav-badge" id="nav-inbox-count" style="display:none">0</span>
+      </a>
+
+      <div class="nav-section-label" style="margin-top:8px">เอกสาร</div>
+
+      <a class="nav-item" data-page="doc-external" onclick="Nav.go('doc-external')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        เอกสารภายนอก
+      </a>
+
+      <a class="nav-item active" data-page="doc-internal" onclick="Nav.go('doc-internal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+        </svg>
+        เอกสารภายใน
+      </a>
+
+      <a class="nav-item" data-page="archive" onclick="Nav.go('archive')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5" rx="1"/>
+          <line x1="10" y1="12" x2="14" y2="12"/>
+        </svg>
+        แฟ้มจัดเก็บ
+      </a>
+
+      <div id="nav-admin" style="display:none">
+        <div class="nav-section-label" style="margin-top:8px">ผู้ดูแลระบบ</div>
+        <a class="nav-item" data-page="admin" onclick="Nav.go('admin')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+          </svg>
+          จัดการระบบ
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebar-avatar">-</div>
+        <div style="flex:1;min-width:0;">
+          <div class="sidebar-user-name" id="sidebar-name">กำลังโหลด...</div>
+          <div class="sidebar-user-role" id="sidebar-role"></div>
+        </div>
+        <button
+          onclick="handleLogout()"
+          style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.5);padding:4px;"
+          title="ออกจากระบบ">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ─────────────────────────────────────────────────── -->
+  <div class="main-wrapper">
+
+    <!-- Top Header -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button id="hamburger" onclick="toggleSidebar()"
+          style="display:none;background:none;border:none;cursor:pointer;padding:8px;border-radius:var(--r-md);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <!-- Breadcrumb -->
+        <nav style="display:flex;align-items:center;gap:6px;font-size:0.875rem;color:var(--c-text-muted);">
+          <a onclick="Nav.go('doc-internal')" style="cursor:pointer;color:var(--c-primary);font-weight:600;">เอกสารภายใน</a>
+          <span>›</span>
+          <span style="color:var(--c-text);font-weight:600;">สร้างเอกสารใหม่</span>
+        </nav>
+      </div>
+      <div class="topbar-right" style="display:flex;align-items:center;gap:12px;">
+        <!-- Notification bell -->
+        <div style="position:relative;">
+          <button class="btn btn-ghost btn-icon" id="notif-bell-btn" onclick="NotifManager.toggle('notif-panel')"
+            style="position:relative;" title="การแจ้งเตือน">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span class="notif-dot" id="notif-dot" style="display:none;position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--c-danger);border:2px solid var(--c-bg-card);"></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main class="page-content" style="max-width:760px;margin:0 auto;">
+
+      <!-- Page Title -->
+      <div style="margin-bottom:28px;">
+        <h1 class="text-heading" style="margin-bottom:4px;">
+          📝 สร้างเอกสารภายใน
+        </h1>
+        <p style="color:var(--c-text-muted);font-size:0.9rem;">
+          จองเลขเอกสาร, กรอกรายละเอียด, และแนบไฟล์ Word / PDF เพื่อส่งเข้าระบบ Workflow
+        </p>
+      </div>
+
+      <!-- ── Stepper ────────────────────────────────────────── -->
+      <div class="stepper" id="stepper">
+        <div class="step-item active" id="step-indicator-1">
+          <div class="step-circle" id="step-circle-1">1</div>
+          <div class="step-label">จองเลขเอกสาร</div>
+        </div>
+        <div class="step-item" id="step-indicator-2">
+          <div class="step-circle" id="step-circle-2">2</div>
+          <div class="step-label">ข้อมูลเอกสาร</div>
+        </div>
+        <div class="step-item" id="step-indicator-3">
+          <div class="step-circle" id="step-circle-3">3</div>
+          <div class="step-label">แนบไฟล์</div>
+        </div>
+      </div>
+
+      <!-- ── Card ──────────────────────────────────────────── -->
+      <div class="card" style="padding:32px;">
+
+        <!-- ════════════════════════════════════════════════
+             STEP 1 — จองเลขเอกสาร
+             ════════════════════════════════════════════════ -->
+        <div class="form-section visible" id="section-step-1">
+
+          <h2 class="text-title" style="margin-bottom:4px;">ขั้นตอนที่ 1 — จองเลขเอกสาร</h2>
+          <p style="color:var(--c-text-muted);font-size:0.875rem;margin-bottom:24px;">
+            เลือกฝ่ายผู้จัดทำ แล้วกดจองเลขเอกสาร ระบบจะล็อคเลขให้ทันที
+          </p>
+
+          <div class="form-group">
+            <label class="form-label" for="select-dept">
+              ฝ่ายผู้จัดทำ <span style="color:var(--c-danger)">*</span>
+            </label>
+            <select class="form-control" id="select-dept">
+              <option value="">— กำลังโหลด... —</option>
+            </select>
+            <span class="form-hint">เลขจะใช้ prefix ของฝ่ายนี้ เช่น <b>ฝอก.001/2569</b></span>
+          </div>
+
+          <!-- Doc No. Display -->
+          <div class="doc-no-display" id="doc-no-display">
+            <div class="doc-no-icon">🔖</div>
+            <div>
+              <div class="doc-no-placeholder" id="doc-no-placeholder">ยังไม่ได้จองเลข — กดปุ่มด้านล่าง</div>
+              <div class="doc-no-value" id="doc-no-value" style="display:none;"></div>
+            </div>
+          </div>
+
+          <!-- Reserve Button -->
+          <div style="margin-top:20px;">
+            <button class="btn btn-primary btn-lg" id="btn-reserve" onclick="reserveDocNumber()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+              </svg>
+              จองเลขเอกสาร
+            </button>
+          </div>
+
+          <div class="form-nav-row">
+            <div></div>
+            <button class="btn btn-primary" id="btn-next-1" onclick="goToStep(2)" disabled>
+              ถัดไป — กรอกข้อมูลเอกสาร
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════
+             STEP 2 — ข้อมูลเอกสาร
+             ════════════════════════════════════════════════ -->
+        <div class="form-section" id="section-step-2">
+
+          <h2 class="text-title" style="margin-bottom:4px;">ขั้นตอนที่ 2 — ข้อมูลเอกสาร</h2>
+          <p style="color:var(--c-text-muted);font-size:0.875rem;margin-bottom:24px;">
+            กรอกชื่อเรื่องและเลือกฝ่ายที่เกี่ยวข้อง
+          </p>
+
+          <!-- Reserved doc no. (read only) -->
+          <div class="form-group">
+            <label class="form-label">เลขเอกสาร (จองแล้ว)</label>
+            <input type="text" class="form-control" id="input-docno-readonly" readonly
+              style="background:var(--c-primary-pale);color:var(--c-primary-dark);font-weight:700;font-size:1rem;">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-subject">
+              เรื่อง (ชื่อหนังสือ) <span style="color:var(--c-danger)">*</span>
+            </label>
+            <input type="text" class="form-control" id="input-subject"
+              placeholder="เช่น ขอเบิกงบประมาณโครงการ..." maxlength="200" autocomplete="off">
+            <span class="form-hint" id="subject-count" style="text-align:right;">0/200</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-doc-date">
+              วันที่เอกสาร <span style="color:var(--c-danger)">*</span>
+            </label>
+            <input type="date" class="form-control" id="input-doc-date">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ฝ่ายที่เกี่ยวข้อง / ผู้รับ</label>
+            <span class="form-hint" style="margin-bottom:6px;">เลือกฝ่ายที่จะรับทราบหรือเกี่ยวข้องกับเอกสารนี้ (ไม่บังคับ)</span>
+            <div class="dept-grid" id="dept-checkboxes">
+              <!-- Populated by JavaScript -->
+            </div>
+          </div>
+
+          <!-- Workflow preview -->
+          <div style="margin-top:8px;">
+            <label class="form-label" style="margin-bottom:8px;">ขั้นตอน Workflow ที่จะเกิดขึ้น</label>
+            <div class="workflow-track" id="workflow-preview">
+              <div class="wf-node wf-done">✓ 1. จองเลข/แนบไฟล์ (เจ้าหน้าที่)</div>
+              <span class="wf-arrow">→</span>
+              <div class="wf-node">2. ลงนาม (หัวหน้าฝ่าย)</div>
+              <span class="wf-arrow">→</span>
+              <div class="wf-node">3. ลงนาม (ผู้ช่วยฯ)</div>
+              <span class="wf-arrow">→</span>
+              <div class="wf-node">4. ลงนาม/สั่งการ (ผู้จัดการ)</div>
+            </div>
+          </div>
+
+          <div class="form-nav-row">
+            <button class="btn btn-ghost" onclick="goToStep(1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+              ย้อนกลับ
+            </button>
+            <button class="btn btn-primary" onclick="goToStep(3)" id="btn-next-2">
+              ถัดไป — แนบไฟล์
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════
+             STEP 3 — แนบไฟล์
+             ════════════════════════════════════════════════ -->
+        <div class="form-section" id="section-step-3">
+
+          <h2 class="text-title" style="margin-bottom:4px;">ขั้นตอนที่ 3 — แนบไฟล์เอกสาร</h2>
+          <p style="color:var(--c-text-muted);font-size:0.875rem;margin-bottom:24px;">
+            อัปโหลดไฟล์ Word หรือ PDF — ถ้าเป็น Word ระบบจะแปลงเป็น PDF อัตโนมัติ
+          </p>
+
+          <!-- Drop zone -->
+          <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+            <input type="file" id="file-input" accept=".pdf,.docx,.doc"
+              onchange="handleFileSelect(event)" onclick="event.stopPropagation()">
+            <div id="dropzone-content">
+              <div class="dropzone-icon">📎</div>
+              <div class="dropzone-title">คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวางที่นี่</div>
+              <div class="dropzone-sub">Word (.docx, .doc) หรือ PDF</div>
+              <div class="dropzone-accept">ขนาดไฟล์สูงสุด 20 MB</div>
+            </div>
+          </div>
+
+          <!-- File Preview -->
+          <div class="file-preview" id="file-preview">
+            <div class="file-preview-icon" id="file-icon">📄</div>
+            <div>
+              <div class="file-preview-name" id="file-name-display"></div>
+              <div class="file-preview-size" id="file-size-display"></div>
+            </div>
+            <button class="btn btn-ghost btn-sm file-preview-btn" onclick="clearFile()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              เอาออก
+            </button>
+          </div>
+
+          <!-- Word → PDF info banner -->
+          <div class="info-alert" id="word-convert-notice" style="display:none;margin-top:16px;">
+            <span style="font-size:1.1rem;flex-shrink:0;">⚡</span>
+            <span>ไฟล์ Word จะถูกแปลงเป็น PDF อัตโนมัติผ่าน Google Drive API
+              ก่อนบันทึกลง Digital Archive — ไฟล์ต้นฉบับจะถูกเก็บไว้ด้วย</span>
+          </div>
+
+          <!-- Summary before submit -->
+          <div class="card" id="submit-summary"
+            style="display:none;margin-top:24px;padding:20px;background:var(--c-primary-pale);border:1px solid var(--c-primary-light);">
+            <div class="text-sm font-700" style="margin-bottom:12px;color:var(--c-primary-dark);">
+              📋 สรุปก่อนบันทึก
+            </div>
+            <div style="display:grid;gap:6px;font-size:0.875rem;">
+              <div><span style="color:var(--c-text-muted);font-weight:600;">เลขเอกสาร:</span>
+                   &nbsp;<span id="summary-docno" style="font-weight:700;color:var(--c-primary-dark);"></span></div>
+              <div><span style="color:var(--c-text-muted);font-weight:600;">เรื่อง:</span>
+                   &nbsp;<span id="summary-subject"></span></div>
+              <div><span style="color:var(--c-text-muted);font-weight:600;">วันที่:</span>
+                   &nbsp;<span id="summary-date"></span></div>
+              <div><span style="color:var(--c-text-muted);font-weight:600;">ฝ่ายผู้จัดทำ:</span>
+                   &nbsp;<span id="summary-dept"></span></div>
+              <div><span style="color:var(--c-text-muted);font-weight:600;">ฝ่ายที่เกี่ยวข้อง:</span>
+                   &nbsp;<span id="summary-assigned"></span></div>
+              <div><span style="color:var(--c-text-muted);font-weight:600;">ไฟล์:</span>
+                   &nbsp;<span id="summary-file"></span></div>
+            </div>
+          </div>
+
+          <div class="form-nav-row">
+            <button class="btn btn-ghost" onclick="goToStep(2)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+              ย้อนกลับ
+            </button>
+            <button class="btn btn-success btn-lg" id="btn-submit" onclick="submitForm()" disabled>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              บันทึกและส่ง Workflow
+            </button>
+          </div>
+        </div>
+        <!-- end step 3 -->
+
+      </div>
+      <!-- end card -->
+
+    </main>
+    <!-- end page-content -->
+  </div>
+  <!-- end main-wrapper -->
+
+</div>
+<!-- end app-layout -->
+
+<!-- Notification panel (offcanvas) -->
+<div id="notif-panel" class="notif-panel" style="display:none;"></div>
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<?!= include('JavaScript') ?>
+
+<script>
+// ============================================================
+// CreateInternal.html — Client-Side Logic
+// ============================================================
+
+// ─── Constants ────────────────────────────────────────────────
+const DEPARTMENTS = ['ฝอก.', 'ฝสท.', 'ฝสส.', 'ฝสช.', 'ฝบช.', 'ฝกง.'];
+const MAX_FILE_SIZE_MB = 20;
+
+// ─── State ────────────────────────────────────────────────────
+let state = {
+  currentStep:   1,
+  session:       null,
+  reservedDocNo: null,
+  senderDept:    null,
+  subject:       '',
+  docDate:       '',
+  assignedDepts: [],
+  fileName:      null,
+  mimeType:      null,
+  base64Data:    null,
+  fileSize:      0
+};
+
+// ─── Init ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  // Set today's date as default
+  const today = new Date();
+  const yyyy  = today.getFullYear();
+  const mm    = String(today.getMonth() + 1).padStart(2, '0');
+  const dd    = String(today.getDate()).padStart(2, '0');
+  document.getElementById('input-doc-date').value = `${yyyy}-${mm}-${dd}`;
+
+  try {
+    // Load session
+    const session = await API.getSession();
+    if (!session) {
+      google.script.run.withSuccessHandler(url => {
+        window.location.href = url + '?page=login';
+      }).getAppUrl();
+      return;
+    }
+    state.session = session;
+
+    // Populate sidebar user
+    const initial = session.displayName ? session.displayName.charAt(0) : '?';
+    document.getElementById('sidebar-avatar').textContent = initial;
+    document.getElementById('sidebar-name').textContent   = session.displayName || session.username;
+    document.getElementById('sidebar-role').textContent   = getRoleLabel(session.role);
+
+    // Restrict: only officer / dept_head can create internal doc
+    if (!['officer', 'dept_head'].includes(session.role)) {
+      await Swal2.error(
+        'ไม่มีสิทธิ์เข้าถึง',
+        'หน้านี้สำหรับเจ้าหน้าที่และหัวหน้าฝ่ายเท่านั้น'
+      );
+      Nav.go('dashboard');
+      return;
+    }
+
+    // Admin nav visibility
+    if (['manager', 'asst_manager'].includes(session.role)) {
+      document.getElementById('nav-admin').style.display = 'block';
+    }
+
+    // Populate department selector
+    populateDeptSelector(session.department);
+
+    // Populate department checkboxes
+    populateDeptCheckboxes(session.department);
+
+    // Init notifications
+    NotifManager.init('notif-panel', 'notif-dot');
+
+    // Init Nav
+    await Nav.init();
+
+  } catch (e) {
+    Swal2.error('โหลดข้อมูลไม่สำเร็จ', e.message || 'กรุณารีโหลดหน้า');
+  }
+
+  // Subject char counter
+  document.getElementById('input-subject').addEventListener('input', function () {
+    document.getElementById('subject-count').textContent = `${this.value.length}/200`;
+  });
+
+  // Dropzone drag-and-drop events
+  const zone = document.getElementById('dropzone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) processFileObject(files[0]);
+  });
+});
+
+// ─── Dept Selector (Step 1) ───────────────────────────────────
+function populateDeptSelector(userDept) {
+  const sel = document.getElementById('select-dept');
+  sel.innerHTML = DEPARTMENTS.map(d =>
+    `<option value="${d}" ${d === userDept ? 'selected' : ''}>${d}</option>`
+  ).join('');
+  state.senderDept = userDept || DEPARTMENTS[0];
+
+  sel.addEventListener('change', function () {
+    state.senderDept = this.value;
+    // ถ้าจองแล้ว แต่เปลี่ยนฝ่าย → ต้องจองใหม่
+    if (state.reservedDocNo) {
+      resetReservedDocNo();
+      Swal2.toast('เปลี่ยนฝ่ายแล้ว — กรุณาจองเลขเอกสารใหม่อีกครั้ง', 'warning');
+    }
+  });
+}
+
+function resetReservedDocNo() {
+  state.reservedDocNo = null;
+  document.getElementById('doc-no-value').style.display      = 'none';
+  document.getElementById('doc-no-placeholder').style.display = 'block';
+  document.getElementById('doc-no-display').style.borderColor = '';
+  document.getElementById('btn-next-1').disabled = true;
+}
+
+// ─── Dept Checkboxes (Step 2) ─────────────────────────────────
+function populateDeptCheckboxes(userDept) {
+  const container = document.getElementById('dept-checkboxes');
+  container.innerHTML = DEPARTMENTS.map(d => `
+    <label class="dept-check-item" for="chk-dept-${d}">
+      <input type="checkbox" id="chk-dept-${d}" value="${d}"
+        ${d === userDept ? 'disabled checked' : ''}
+        onchange="updateAssignedDepts()">
+      <span class="dept-check-label">${d}</span>
+    </label>`
+  ).join('');
+
+  // Pre-check user's own dept (sender) but disabled
+  updateAssignedDepts();
+}
+
+function updateAssignedDepts() {
+  const checked = Array.from(
+    document.querySelectorAll('#dept-checkboxes input[type="checkbox"]:checked')
+  ).map(cb => cb.value);
+  state.assignedDepts = checked;
+
+  document.querySelectorAll('.dept-check-item').forEach(item => {
+    const cb = item.querySelector('input[type="checkbox"]');
+    item.classList.toggle('checked', cb.checked);
+  });
+}
+
+// ─── Step 1: Reserve Doc Number ──────────────────────────────
+async function reserveDocNumber() {
+  const dept = document.getElementById('select-dept').value;
+  if (!dept) {
+    Swal2.toast('กรุณาเลือกฝ่ายผู้จัดทำก่อน', 'warning');
+    return;
+  }
+
+  const confirmResult = await Swal2.confirm(
+    `จองเลขเอกสาร?`,
+    `ระบบจะจองเลข <b>${dept}XXX/YYYY</b> สำหรับฝ่าย <b>${dept}</b><br>
+     <small>เลขที่จองแล้วไม่สามารถยกเลิกได้</small>`,
+    'จองเลข'
+  );
+  if (!confirmResult.isConfirmed) return;
+
+  const btn = document.getElementById('btn-reserve');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    const res = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .reserveDocumentNumber('internal', dept);
+    });
+
+    if (!res || !res.success) throw new Error(res?.message || 'จองเลขไม่สำเร็จ');
+
+    // Success
+    state.reservedDocNo = res.data.docNo;
+    state.senderDept    = dept;
+
+    // Update UI
+    document.getElementById('doc-no-placeholder').style.display = 'none';
+    document.getElementById('doc-no-value').textContent         = res.data.docNo;
+    document.getElementById('doc-no-value').style.display       = 'block';
+    document.getElementById('doc-no-display').style.borderColor = 'var(--c-success)';
+    document.getElementById('doc-no-display').style.background  =
+      'linear-gradient(135deg, var(--c-success-light) 0%, #d1fae5 100%)';
+    document.getElementById('doc-no-display').querySelector('.doc-no-icon').textContent = '✅';
+
+    // Enable next button
+    document.getElementById('btn-next-1').disabled = false;
+
+    // Mark step 1 circle with check
+    setStepCompleted(1);
+
+    Swal2.toast(`จองเลข ${res.data.docNo} สำเร็จ!`, 'success');
+
+  } catch (e) {
+    Swal2.error('จองเลขไม่สำเร็จ', App.escHtml(e.message || 'เกิดข้อผิดพลาด'));
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+// ─── Stepper Navigation ───────────────────────────────────────
+function goToStep(step) {
+  // Validate before leaving current step
+  if (step > state.currentStep) {
+    if (!validateCurrentStep()) return;
+  }
+
+  // Hide all sections
+  document.querySelectorAll('.form-section').forEach(s => s.classList.remove('visible'));
+
+  // Show target section
+  document.getElementById(`section-step-${step}`).classList.add('visible');
+
+  // Update stepper indicators
+  for (let i = 1; i <= 3; i++) {
+    const indicator = document.getElementById(`step-indicator-${i}`);
+    indicator.classList.remove('active', 'completed');
+    if (i < step)      indicator.classList.add('completed');
+    else if (i === step) indicator.classList.add('active');
+  }
+
+  state.currentStep = step;
+
+  // Sync step 2 readonly docno
+  if (step === 2) {
+    document.getElementById('input-docno-readonly').value = state.reservedDocNo || '';
+  }
+
+  // Sync submit summary on step 3
+  if (step === 3) {
+    updateSubmitSummary();
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function validateCurrentStep() {
+  const step = state.currentStep;
+
+  if (step === 1) {
+    if (!state.reservedDocNo) {
+      Swal2.toast('กรุณาจองเลขเอกสารก่อน', 'warning');
+      return false;
+    }
+  }
+
+  if (step === 2) {
+    const subject = document.getElementById('input-subject').value.trim();
+    const docDate = document.getElementById('input-doc-date').value;
+
+    if (!subject) {
+      Swal2.toast('กรุณากรอกชื่อเรื่องเอกสาร', 'warning');
+      document.getElementById('input-subject').focus();
+      return false;
+    }
+    if (!docDate) {
+      Swal2.toast('กรุณาเลือกวันที่เอกสาร', 'warning');
+      document.getElementById('input-doc-date').focus();
+      return false;
+    }
+
+    state.subject = subject;
+    state.docDate = docDate;
+    setStepCompleted(2);
+  }
+
+  return true;
+}
+
+function setStepCompleted(stepNo) {
+  const indicator = document.getElementById(`step-indicator-${stepNo}`);
+  indicator.classList.remove('active');
+  indicator.classList.add('completed');
+  const circle = document.getElementById(`step-circle-${stepNo}`);
+  circle.innerHTML = '✓';
+}
+
+// ─── Step 3: File Handling ─────────────────────────────────────
+function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (file) processFileObject(file);
+}
+
+function processFileObject(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (!['pdf', 'docx', 'doc'].includes(ext)) {
+    Swal2.toast('รองรับเฉพาะ PDF และ Word (.docx, .doc)', 'error');
+    return;
+  }
+
+  const sizeMB = file.size / 1024 / 1024;
+  if (sizeMB > MAX_FILE_SIZE_MB) {
+    Swal2.toast(`ไฟล์ใหญ่เกิน ${MAX_FILE_SIZE_MB} MB`, 'error');
+    return;
+  }
+
+  // Read as base64
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    // Strip data URL prefix to get pure base64
+    const dataUrl = e.target.result;
+    state.base64Data = dataUrl.split(',')[1];
+    state.fileName   = file.name;
+    state.mimeType   = file.type || 'application/octet-stream';
+    state.fileSize   = file.size;
+
+    showFilePreview(file);
+    setStepCompleted(3);
+    document.getElementById('btn-submit').disabled = false;
+    updateSubmitSummary();
+
+    // Show Word convert notice
+    document.getElementById('word-convert-notice').style.display =
+      ['docx', 'doc'].includes(ext) ? 'flex' : 'none';
+  };
+  reader.onerror = () => Swal2.toast('อ่านไฟล์ไม่สำเร็จ กรุณาลองใหม่', 'error');
+  reader.readAsDataURL(file);
+}
+
+function showFilePreview(file) {
+  const ext  = file.name.split('.').pop().toLowerCase();
+  const icon = ext === 'pdf' ? '📕' : '📘';
+
+  document.getElementById('file-icon').textContent     = icon;
+  document.getElementById('file-name-display').textContent = file.name;
+  document.getElementById('file-size-display').textContent = formatFileSize(file.size);
+
+  document.getElementById('file-preview').classList.add('show');
+  document.getElementById('dropzone').classList.add('has-file');
+
+  // Replace dropzone content
+  document.getElementById('dropzone-content').innerHTML = `
+    <div class="dropzone-icon">✅</div>
+    <div class="dropzone-title" style="color:var(--c-success);">ไฟล์พร้อมอัปโหลดแล้ว</div>
+    <div class="dropzone-sub">คลิกเพื่อเปลี่ยนไฟล์</div>`;
+}
+
+function clearFile() {
+  state.base64Data = null;
+  state.fileName   = null;
+  state.mimeType   = null;
+  state.fileSize   = 0;
+
+  document.getElementById('file-input').value            = '';
+  document.getElementById('file-preview').classList.remove('show');
+  document.getElementById('dropzone').classList.remove('has-file');
+  document.getElementById('word-convert-notice').style.display = 'none';
+  document.getElementById('btn-submit').disabled         = true;
+  document.getElementById('submit-summary').style.display = 'none';
+
+  document.getElementById('dropzone-content').innerHTML = `
+    <div class="dropzone-icon">📎</div>
+    <div class="dropzone-title">คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวางที่นี่</div>
+    <div class="dropzone-sub">Word (.docx, .doc) หรือ PDF</div>
+    <div class="dropzone-accept">ขนาดไฟล์สูงสุด ${MAX_FILE_SIZE_MB} MB</div>`;
+
+  // Reset step 3 circle
+  const indicator = document.getElementById('step-indicator-3');
+  indicator.classList.remove('completed');
+  indicator.classList.add('active');
+  document.getElementById('step-circle-3').innerHTML = '3';
+}
+
+// ─── Submit Summary ───────────────────────────────────────────
+function updateSubmitSummary() {
+  if (!state.base64Data) return;
+
+  const subject  = document.getElementById('input-subject').value.trim();
+  const docDate  = document.getElementById('input-doc-date').value;
+  const assigned = state.assignedDepts.filter(d => d !== state.senderDept);
+
+  document.getElementById('summary-docno').textContent    = state.reservedDocNo || '-';
+  document.getElementById('summary-subject').textContent  = subject || '-';
+  document.getElementById('summary-date').textContent     = docDate ? formatDateTH(docDate) : '-';
+  document.getElementById('summary-dept').textContent     = state.senderDept || '-';
+  document.getElementById('summary-assigned').textContent = assigned.length ? assigned.join(', ') : '(ไม่ระบุ)';
+  document.getElementById('summary-file').textContent     = state.fileName
+    ? `${state.fileName} (${formatFileSize(state.fileSize)})`
+    : '-';
+
+  document.getElementById('submit-summary').style.display = 'block';
+}
+
+// ─── Final Submit ─────────────────────────────────────────────
+async function submitForm() {
+  // Final validation
+  const subject = document.getElementById('input-subject').value.trim();
+  const docDate = document.getElementById('input-doc-date').value;
+
+  if (!state.reservedDocNo) { Swal2.toast('กรุณาจองเลขเอกสารก่อน', 'warning'); return; }
+  if (!subject)             { Swal2.toast('กรุณากรอกชื่อเรื่อง', 'warning'); return; }
+  if (!docDate)             { Swal2.toast('กรุณาระบุวันที่เอกสาร', 'warning'); return; }
+  if (!state.base64Data)    { Swal2.toast('กรุณาแนบไฟล์เอกสาร', 'warning'); return; }
+
+  const confirm = await Swal2.confirm(
+    'ยืนยันการบันทึก?',
+    `บันทึกเอกสาร <b>${App.escHtml(state.reservedDocNo)}</b><br>
+     เรื่อง: ${App.escHtml(subject)}<br>
+     <small>ระบบจะส่งเข้า Workflow ให้หัวหน้าฝ่ายลงนามต่อไป</small>`,
+    'บันทึกและส่ง Workflow'
+  );
+  if (!confirm.isConfirmed) return;
+
+  // Disable button + show loading
+  Swal2.loading('กำลังประมวลผลและบันทึกเอกสาร...');
+  document.getElementById('btn-submit').disabled = true;
+
+  const params = {
+    docNo:         state.reservedDocNo,
+    subject:       subject,
+    senderDept:    state.senderDept,
+    assignedDepts: state.assignedDepts,
+    docDate:       docDate,
+    fileName:      state.fileName,
+    mimeType:      state.mimeType,
+    base64Data:    state.base64Data
+  };
+
+  try {
+    const res = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .processAndSaveInternalDoc(params);
+    });
+
+    Swal2.close();
+
+    if (!res || !res.success) throw new Error(res?.message || 'บันทึกไม่สำเร็จ');
+
+    // Success!
+    await Swal.fire({
+      title:             '✅ บันทึกสำเร็จ!',
+      html: `
+        <div style="font-family:Sarabun,sans-serif;text-align:left;padding:0 8px;">
+          <div style="margin-bottom:8px;">
+            เลขเอกสาร: <b style="color:var(--c-primary)">${App.escHtml(res.data.docNo)}</b>
+          </div>
+          <div style="margin-bottom:8px;">เรื่อง: ${App.escHtml(subject)}</div>
+          <div style="color:var(--c-text-muted);font-size:0.85rem;">
+            บันทึกลง Digital Archive แล้ว<br>
+            ส่งให้หัวหน้าฝ่ายลงนาม (Step 2) แล้ว
+          </div>
+        </div>`,
+      icon:              'success',
+      confirmButtonText: 'ดูรายการเอกสาร',
+      showCancelButton:  true,
+      cancelButtonText:  'สร้างเอกสารใหม่',
+      confirmButtonColor: '#2563eb',
+      cancelButtonColor:  '#6b7280'
+    }).then(result => {
+      if (result.isConfirmed) {
+        Nav.go('doc-internal');
+      } else {
+        // Reset form
+        resetForm();
+      }
+    });
+
+  } catch (e) {
+    Swal2.close();
+    document.getElementById('btn-submit').disabled = false;
+    Swal2.error('บันทึกไม่สำเร็จ', App.escHtml(e.message || 'กรุณาลองใหม่อีกครั้ง'));
+  }
+}
+
+// ─── Reset Form ───────────────────────────────────────────────
+function resetForm() {
+  state.reservedDocNo = null;
+  state.subject       = '';
+  state.assignedDepts = [];
+  clearFile();
+
+  document.getElementById('input-subject').value = '';
+  document.getElementById('doc-no-value').style.display       = 'none';
+  document.getElementById('doc-no-placeholder').style.display = 'block';
+  document.getElementById('doc-no-display').style.borderColor = '';
+  document.getElementById('doc-no-display').style.background  = '';
+  document.getElementById('doc-no-display').querySelector('.doc-no-icon').textContent = '🔖';
+  document.getElementById('btn-next-1').disabled = true;
+  document.getElementById('submit-summary').style.display = 'none';
+
+  // Reset all dept checkboxes except sender (re-render)
+  if (state.session) {
+    populateDeptCheckboxes(state.session.department);
+  }
+
+  // Reset stepper  
+  ['step-indicator-1','step-indicator-2','step-indicator-3'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('active','completed');
+    if (i === 0) el.classList.add('active');
+    document.getElementById(`step-circle-${i+1}`).innerHTML = String(i+1);
+  });
+
+  goToStep(1);
+}
+
+// ─── Utility Helpers ──────────────────────────────────────────
+function getRoleLabel(role) {
+  const m = {
+    officer:      'เจ้าหน้าที่',
+    dept_head:    'หัวหน้าฝ่าย',
+    asst_manager: 'ผู้ช่วยผู้จัดการ',
+    manager:      'ผู้จัดการ'
+  };
+  return m[role] || role;
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024)         return `${bytes} B`;
+  if (bytes < 1024 * 1024)  return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function formatDateTH(isoDate) {
+  if (!isoDate) return '-';
+  const d = new Date(isoDate + 'T00:00:00');
+  const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                  'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543}`;
+}
+
+// ─── Sidebar helpers (delegated to global JS) ─────────────────
+function handleLogout() {
+  document.getElementById('logout-modal')?.classList.add('show');
+  // Fallback if logout modal not present globally
+  Swal2.confirm('ออกจากระบบ?', 'ต้องการออกจากระบบใช่หรือไม่?', 'ออกจากระบบ', 'warning')
+    .then(r => { if (r.isConfirmed) google.script.run.logoutUser(); });
+}
+
+function toggleSidebar() {
+  const sidebar  = document.getElementById('sidebar');
+  const overlay  = document.getElementById('sidebar-overlay');
+  const isOpen   = sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', !isOpen);
+  overlay.classList.toggle('show', !isOpen);
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('show');
+}
+</script>
+</body>
+</html>

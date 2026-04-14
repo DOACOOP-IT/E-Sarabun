@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ลงรับเอกสารภายนอก — E-Sarabun</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <?!= include('Stylesheet') ?>
+  <style>
+    /* ── ReceiveExternal-specific styles ─────────────────────── */
+
+    /* ── Two-Panel Layout ────────────────────────────────────── */
+    .receive-layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    /* ── INBOX Panel (left) ──────────────────────────────────── */
+    .inbox-panel {
+      position: sticky;
+      top: calc(var(--header-h) + 16px);
+    }
+    .inbox-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--c-border);
+    }
+    .inbox-header-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .inbox-count-badge {
+      background: var(--c-primary);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: var(--r-pill);
+      padding: 2px 8px;
+      line-height: 1.6;
+    }
+    .inbox-list {
+      max-height: 560px;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+    .inbox-file-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background var(--tr-base);
+      border-left: 3px solid transparent;
+    }
+    .inbox-file-item:hover {
+      background: var(--c-primary-pale);
+    }
+    .inbox-file-item.selected {
+      background: var(--c-primary-light);
+      border-left-color: var(--c-primary);
+    }
+    .inbox-file-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+    .inbox-file-icon.pdf   { background: #fee2e2; }
+    .inbox-file-icon.word  { background: #dbeafe; }
+    .inbox-file-icon.image { background: #d1fae5; }
+    .inbox-file-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      line-height: 1.3;
+      word-break: break-all;
+      color: var(--c-text);
+    }
+    .inbox-file-meta {
+      font-size: 0.72rem;
+      color: var(--c-text-muted);
+      margin-top: 2px;
+    }
+    .inbox-empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--c-text-muted);
+    }
+    .inbox-empty-icon { font-size: 2.5rem; margin-bottom: 8px; }
+
+    /* ── Selected File Preview (inside inbox panel) ──────────── */
+    .file-selected-preview {
+      display: none;
+      margin: 0;
+      border-top: 1px solid var(--c-border);
+      padding: 16px;
+      background: var(--c-primary-pale);
+    }
+    .file-selected-preview.show { display: block; }
+    .file-preview-header {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--c-primary-dark);
+      margin-bottom: 8px;
+    }
+    .file-preview-thumb {
+      width: 100%;
+      border-radius: var(--r-md);
+      border: 1px solid var(--c-border);
+      background: #fff;
+      overflow: hidden;
+    }
+
+    /* ── Form Panel (right) ──────────────────────────────────── */
+    .form-panel {}
+
+    /* ── Urgency + Secrecy Badges ────────────────────────────── */
+    .badge-selector {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .badge-option {
+      padding: 5px 14px;
+      border-radius: var(--r-pill);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid var(--c-border);
+      background: var(--c-bg-card);
+      color: var(--c-text-muted);
+      transition: all var(--tr-base);
+      user-select: none;
+    }
+    .badge-option:hover { border-color: var(--c-primary-light); }
+    .badge-option.selected-normal    { background: var(--c-primary-pale);   border-color: var(--c-primary);  color: var(--c-primary-dark); }
+    .badge-option.selected-urgent    { background: var(--c-warning-light);  border-color: var(--c-warning);  color: var(--c-warning-text); }
+    .badge-option.selected-very_urgent { background: var(--c-danger-light); border-color: var(--c-danger);   color: var(--c-danger-text); }
+    .badge-option.selected-confidential { background: var(--c-warning-light); border-color: var(--c-warning); color: var(--c-warning-text); }
+    .badge-option.selected-secret    { background: var(--c-danger-light);   border-color: var(--c-danger);   color: var(--c-danger-text); }
+
+    /* ── Dept Checkboxes ─────────────────────────────────────── */
+    .dept-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .dept-check-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1.5px solid var(--c-border);
+      border-radius: var(--r-md);
+      cursor: pointer;
+      transition: all var(--tr-base);
+      background: var(--c-bg-card);
+      user-select: none;
+    }
+    .dept-check-item:hover   { border-color: var(--c-primary-light); background: var(--c-primary-pale); }
+    .dept-check-item.checked { border-color: var(--c-primary); background: var(--c-primary-pale); }
+    .dept-check-item input[type="checkbox"] {
+      width: 15px; height: 15px;
+      accent-color: var(--c-primary);
+      cursor: pointer; flex-shrink: 0;
+    }
+    .dept-check-label { font-size: 0.82rem; font-weight: 600; color: var(--c-text); }
+
+    /* ── Workflow Preview Strip ──────────────────────────────── */
+    .workflow-track {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .wf-node {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: var(--r-pill);
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: var(--c-primary-light);
+      color: var(--c-primary-dark);
+      border: 1px solid var(--c-primary-light);
+    }
+    .wf-node.wf-done  { background: var(--c-success-light); color: var(--c-success-text); border-color: var(--c-success-light); }
+    .wf-node.wf-next  { background: var(--c-warning-light); color: var(--c-warning-text); border-color: var(--c-warning-light); }
+    .wf-arrow { color: var(--c-text-muted); font-size: 0.7rem; }
+
+    /* ── Submit Bar ──────────────────────────────────────────── */
+    .submit-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid var(--c-border);
+    }
+
+    /* ── No-File Overlay ─────────────────────────────────────── */
+    .no-file-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(240, 245, 255, 0.88);
+      backdrop-filter: blur(2px);
+      border-radius: var(--r-xl);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      gap: 12px;
+    }
+    .no-file-overlay .icon  { font-size: 2.5rem; }
+    .no-file-overlay .label { font-size: 0.9rem; font-weight: 600; color: var(--c-text-muted); }
+
+    /* ── Doc No Preview ──────────────────────────────────────── */
+    .doc-no-peek {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--c-primary-pale);
+      border: 1.5px dashed var(--c-primary-light);
+      border-radius: var(--r-md);
+      padding: 8px 16px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--c-primary-dark);
+      letter-spacing: 0.3px;
+    }
+    .doc-no-peek .peek-label { font-weight: 400; font-size: 0.8rem; color: var(--c-text-muted); }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .receive-layout { grid-template-columns: 1fr; }
+      .inbox-panel { position: static; }
+    }
+    @media (max-width: 640px) {
+      .dept-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 992px) {
+      #hamburger { display: flex !important; }
+      #sidebar-overlay { display: block !important; pointer-events: none; transition: opacity 0.2s; opacity: 0; }
+      #sidebar-overlay.show { pointer-events: all; opacity: 1; }
+    }
+
+    .swal2-popup { font-family: 'Sarabun', sans-serif !important; border-radius: 20px !important; }
+    .swal2-confirm, .swal2-cancel { font-family: 'Sarabun', sans-serif !important; border-radius: 9999px !important; font-weight: 600 !important; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">ส</div>
+      <div>
+        <div class="sidebar-title">E-Sarabun</div>
+        <div class="sidebar-subtitle">ระบบสารบรรณ</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">เมนูหลัก</div>
+
+      <a class="nav-item" data-page="dashboard" onclick="Nav.go('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        หน้าหลัก
+      </a>
+
+      <a class="nav-item" data-page="inbox" onclick="Nav.go('inbox')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+        กล่องงานค้าง
+        <span class="nav-badge" id="nav-inbox-count" style="display:none">0</span>
+      </a>
+
+      <div class="nav-section-label" style="margin-top:8px">เอกสาร</div>
+
+      <a class="nav-item active" data-page="doc-external" onclick="Nav.go('doc-external')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        เอกสารภายนอก
+      </a>
+
+      <a class="nav-item" data-page="doc-internal" onclick="Nav.go('doc-internal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        เอกสารภายใน
+      </a>
+
+      <a class="nav-item" data-page="archive" onclick="Nav.go('archive')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5" rx="1"/>
+          <line x1="10" y1="12" x2="14" y2="12"/>
+        </svg>
+        แฟ้มจัดเก็บ
+      </a>
+
+      <div id="nav-admin" style="display:none">
+        <div class="nav-section-label" style="margin-top:8px">ผู้ดูแลระบบ</div>
+        <a class="nav-item" data-page="admin" onclick="Nav.go('admin')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+          </svg>
+          จัดการระบบ
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebar-avatar">-</div>
+        <div style="flex:1;min-width:0;">
+          <div class="sidebar-user-name" id="sidebar-name">กำลังโหลด...</div>
+          <div class="sidebar-user-role" id="sidebar-role"></div>
+        </div>
+        <button onclick="handleLogout()"
+          style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.5);padding:4px;"
+          title="ออกจากระบบ">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ─────────────────────────────────────────────────── -->
+  <div class="main-wrapper">
+
+    <!-- Top Header -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button id="hamburger" onclick="toggleSidebar()"
+          style="display:none;background:none;border:none;cursor:pointer;padding:8px;border-radius:var(--r-md);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <nav style="display:flex;align-items:center;gap:6px;font-size:0.875rem;color:var(--c-text-muted);">
+          <a onclick="Nav.go('doc-external')" style="cursor:pointer;color:var(--c-primary);font-weight:600;">เอกสารภายนอก</a>
+          <span>›</span>
+          <span style="color:var(--c-text);font-weight:600;">ลงรับเอกสาร</span>
+        </nav>
+      </div>
+      <div class="topbar-right" style="display:flex;align-items:center;gap:12px;">
+        <div style="position:relative;">
+          <button class="btn btn-ghost btn-icon" id="notif-bell-btn"
+            onclick="NotifManager.toggle('notif-panel')" title="การแจ้งเตือน">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span class="notif-dot" id="notif-dot"
+              style="display:none;position:absolute;top:6px;right:6px;width:8px;height:8px;
+                     border-radius:50%;background:var(--c-danger);border:2px solid var(--c-bg-card);"></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main class="page-content">
+
+      <!-- Page Title Row -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap;">
+        <div>
+          <h1 class="text-heading" style="margin-bottom:4px;">
+            📨 ลงรับเอกสารภายนอก
+          </h1>
+          <p style="color:var(--c-text-muted);font-size:0.875rem;">
+            เลือกไฟล์จาก INBOX แล้วกรอกรายละเอียด — ระบบจะย้ายไฟล์ลง Digital Archive อัตโนมัติ
+          </p>
+        </div>
+        <!-- Permission badge -->
+        <div id="perm-badge"
+          style="background:var(--c-primary-light);color:var(--c-primary-dark);border-radius:var(--r-pill);
+                 padding:5px 14px;font-size:0.8rem;font-weight:700;align-self:flex-start;display:none;">
+          🔐 สำหรับเจ้าหน้าที่ ฝอก. เท่านั้น
+        </div>
+      </div>
+
+      <!-- ── Access Denied (shown if not ฝอก.) ──────────────── -->
+      <div id="access-denied" class="card" style="display:none;padding:48px;text-align:center;">
+        <div style="font-size:3rem;margin-bottom:16px;">🔒</div>
+        <div class="text-title" style="margin-bottom:8px;">ไม่มีสิทธิ์เข้าถึง</div>
+        <div style="color:var(--c-text-muted);margin-bottom:20px;">
+          หน้านี้สำหรับเจ้าหน้าที่ฝ่าย <strong>ฝอก.</strong> เท่านั้น
+        </div>
+        <button class="btn btn-primary" onclick="Nav.go('dashboard')">กลับหน้าหลัก</button>
+      </div>
+
+      <!-- ── Main Layout ─────────────────────────────────────── -->
+      <div id="main-content" style="display:none;">
+      <div class="receive-layout">
+
+        <!-- ═══════════════════════════════════════════
+             LEFT: INBOX File List
+             ═══════════════════════════════════════════ -->
+        <div class="inbox-panel">
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div class="inbox-header">
+              <div class="inbox-header-title">
+                <span>📥 INBOX</span>
+                <span class="inbox-count-badge" id="inbox-count">0</span>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="btn-refresh-inbox" onclick="loadInboxFiles()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="23 4 23 10 17 10"/>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                รีเฟรช
+              </button>
+            </div>
+
+            <!-- Loading skeleton -->
+            <div id="inbox-loading" style="padding:20px;">
+              <div class="skeleton skeleton-line w-full"></div>
+              <div class="skeleton skeleton-line w-3/4" style="margin-top:8px;"></div>
+              <div class="skeleton skeleton-line w-full" style="margin-top:8px;"></div>
+            </div>
+
+            <!-- File List -->
+            <div class="inbox-list" id="inbox-list" style="display:none;"></div>
+
+            <!-- Selected file preview -->
+            <div class="file-selected-preview" id="file-selected-preview">
+              <div class="file-preview-header">👁 ตัวอย่างไฟล์ที่เลือก</div>
+              <iframe id="file-preview-frame"
+                style="width:100%;height:220px;border:none;border-radius:8px;background:#f8f9fa;"
+                src="about:blank"
+                sandbox="allow-scripts allow-same-origin allow-popups">
+              </iframe>
+              <div style="margin-top:8px;display:flex;gap:6px;">
+                <a id="file-open-link" href="#" target="_blank"
+                  class="btn btn-ghost btn-sm" style="font-size:0.75rem;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                  เปิดใน Drive
+                </a>
+                <button class="btn btn-ghost btn-sm" style="font-size:0.75rem;" onclick="clearSelectedFile()">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                  ยกเลิก
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════
+             RIGHT: Form
+             ═══════════════════════════════════════════ -->
+        <div class="form-panel">
+          <div class="card" style="padding:28px;position:relative;">
+
+            <!-- No-file overlay (shown until file selected) -->
+            <div class="no-file-overlay" id="no-file-overlay">
+              <div class="icon">👈</div>
+              <div class="label">เลือกไฟล์จาก INBOX ก่อน</div>
+            </div>
+
+            <h2 class="text-title" style="margin-bottom:20px;">รายละเอียดเอกสาร</h2>
+
+            <!-- Doc No. peek row -->
+            <div style="margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <div class="doc-no-peek">
+                <span class="peek-label">เลขที่จะได้รับ</span>
+                <span id="doc-no-peek-value">รับ.???/????</span>
+              </div>
+              <span style="font-size:0.78rem;color:var(--c-text-muted);">
+                (จะจองเมื่อกด "ลงรับ" เท่านั้น)
+              </span>
+            </div>
+
+            <!-- Subject -->
+            <div class="form-group">
+              <label class="form-label" for="input-subject">
+                เรื่อง <span style="color:var(--c-danger)">*</span>
+              </label>
+              <input type="text" class="form-control" id="input-subject"
+                placeholder="เรื่องของหนังสือ..." maxlength="200" autocomplete="off">
+              <span class="form-hint" id="subject-count"
+                style="text-align:right;font-size:0.75rem;">0/200</span>
+            </div>
+
+            <!-- From / To row -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" for="input-from-org">
+                  จาก (หน่วยงานที่ส่ง) <span style="color:var(--c-danger)">*</span>
+                </label>
+                <input type="text" class="form-control" id="input-from-org"
+                  placeholder="เช่น กรมการขนส่ง..." maxlength="200" autocomplete="off">
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" for="input-receiver">
+                  เรียน (ผู้รับ) <span style="color:var(--c-danger)">*</span>
+                </label>
+                <input type="text" class="form-control" id="input-receiver"
+                  placeholder="เช่น ผู้จัดการ..." maxlength="100" autocomplete="off">
+              </div>
+            </div>
+            <div style="height:20px;"></div>
+
+            <!-- Doc Date -->
+            <div class="form-group">
+              <label class="form-label" for="input-doc-date">
+                วันที่ในหนังสือ <span style="color:var(--c-danger)">*</span>
+              </label>
+              <input type="date" class="form-control" id="input-doc-date" style="max-width:240px;">
+            </div>
+
+            <!-- Urgency row -->
+            <div class="form-group">
+              <label class="form-label">ชั้นความเร่งด่วน</label>
+              <div class="badge-selector" id="urgency-selector">
+                <label class="badge-option selected-normal" data-value="normal"   onclick="selectBadge('urgency', 'normal')">ปกติ</label>
+                <label class="badge-option"                 data-value="urgent"   onclick="selectBadge('urgency', 'urgent')">ด่วน</label>
+                <label class="badge-option"                 data-value="very_urgent" onclick="selectBadge('urgency', 'very_urgent')">ด่วนมาก</label>
+              </div>
+            </div>
+
+            <!-- Secrecy row -->
+            <div class="form-group">
+              <label class="form-label">ชั้นความลับ</label>
+              <div class="badge-selector" id="secrecy-selector">
+                <label class="badge-option selected-normal" data-value="normal"       onclick="selectBadge('secrecy', 'normal')">ปกติ</label>
+                <label class="badge-option"                 data-value="confidential" onclick="selectBadge('secrecy', 'confidential')">ลับ</label>
+                <label class="badge-option"                 data-value="secret"       onclick="selectBadge('secrecy', 'secret')">ลับมาก</label>
+              </div>
+            </div>
+
+            <!-- Assigned Depts (step 4) -->
+            <div class="form-group" style="margin-bottom:8px;">
+              <label class="form-label">
+                ฝ่ายที่รับมอบหมาย <span style="font-weight:400;color:var(--c-text-muted)">(สำหรับขั้นตอนรับทราบ)</span>
+              </label>
+              <span class="form-hint" style="margin-bottom:6px;">
+                เลือกฝ่ายที่ต้องรับทราบเอกสารนี้หลังผู้จัดการสั่งการ
+              </span>
+              <div class="dept-grid" id="dept-checkboxes">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <!-- Workflow Preview -->
+            <div style="margin-top:4px;margin-bottom:4px;">
+              <label class="form-label" style="margin-bottom:8px;font-size:0.8rem;color:var(--c-text-muted);">
+                ขั้นตอน Workflow ที่จะเกิดขึ้น
+              </label>
+              <div class="workflow-track">
+                <div class="wf-node wf-done">✓ 1. ลงรับ (ฝอก.)</div>
+                <span class="wf-arrow">→</span>
+                <div class="wf-node wf-next">2. ลงนาม (ผู้ช่วยฯ)</div>
+                <span class="wf-arrow">→</span>
+                <div class="wf-node">3. สั่งการ (ผู้จัดการ)</div>
+                <span class="wf-arrow">→</span>
+                <div class="wf-node">4. รับทราบ (หัวหน้าฝ่าย)</div>
+              </div>
+            </div>
+
+            <!-- Submit bar -->
+            <div class="submit-bar">
+              <button class="btn btn-ghost" onclick="Nav.go('doc-external')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="15 18 9 12 15 6"/>
+                </svg>
+                ยกเลิก
+              </button>
+              <button class="btn btn-primary btn-lg" id="btn-submit" onclick="submitReceive()" disabled>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                ลงรับเอกสาร
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- end receive-layout -->
+      </div><!-- end main-content -->
+
+    </main>
+  </div>
+</div>
+
+<!-- Notification panel -->
+<div id="notif-panel" class="notif-panel" style="display:none;"></div>
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<?!= include('JavaScript') ?>
+
+<script>
+// ============================================================
+// ReceiveExternal.html — Client-Side Logic
+// ============================================================
+
+const DEPARTMENTS = ['ฝอก.', 'ฝสท.', 'ฝสส.', 'ฝสช.', 'ฝบช.', 'ฝกง.'];
+
+// ─── State ────────────────────────────────────────────────────
+let state = {
+  session:          null,
+  selectedFileId:   null,
+  selectedFileName: '',
+  selectedMime:     '',
+  urgency:          'normal',
+  secrecy:          'normal',
+  assignedDepts:    [],
+  nextDocNo:        null
+};
+
+// ─── Init ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  // Default today's date
+  const today = new Date();
+  const yyyy  = today.getFullYear();
+  const mm    = String(today.getMonth() + 1).padStart(2, '0');
+  const dd    = String(today.getDate()).padStart(2, '0');
+  document.getElementById('input-doc-date').value = `${yyyy}-${mm}-${dd}`;
+
+  try {
+    const session = await API.getSession();
+    if (!session) {
+      google.script.run.withSuccessHandler(url => {
+        window.location.href = url + '?page=login';
+      }).getAppUrl();
+      return;
+    }
+
+    state.session = session;
+
+    // Update sidebar
+    const initial = session.displayName ? session.displayName.charAt(0) : '?';
+    document.getElementById('sidebar-avatar').textContent = initial;
+    document.getElementById('sidebar-name').textContent   = session.displayName || session.username;
+    document.getElementById('sidebar-role').textContent   = getRoleLabel(session.role);
+
+    if (['manager', 'asst_manager'].includes(session.role)) {
+      document.getElementById('nav-admin').style.display = 'block';
+    }
+
+    // ── Permission check: officer ฝอก. only ──────────────────
+    if (session.department !== 'ฝอก.' || session.role !== 'officer') {
+      document.getElementById('access-denied').style.display = 'block';
+      return;
+    }
+
+    // Show page
+    document.getElementById('main-content').style.display = 'block';
+    document.getElementById('perm-badge').style.display   = 'inline-block';
+
+    // Populate dept checkboxes
+    populateDeptCheckboxes();
+
+    // Load INBOX files
+    loadInboxFiles();
+
+    // Peek next external doc number
+    peekNextDocNo();
+
+    // Init notifications & nav
+    NotifManager.init('notif-panel', 'notif-dot');
+    await Nav.init();
+
+  } catch (e) {
+    Swal2.error('โหลดข้อมูลไม่สำเร็จ', e.message || 'กรุณารีโหลดหน้า');
+  }
+
+  // Subject char counter
+  document.getElementById('input-subject').addEventListener('input', function () {
+    document.getElementById('subject-count').textContent = `${this.value.length}/200`;
+  });
+});
+
+// ─── Load INBOX Files ─────────────────────────────────────────
+async function loadInboxFiles() {
+  const listEl    = document.getElementById('inbox-list');
+  const loadingEl = document.getElementById('inbox-loading');
+  const countEl   = document.getElementById('inbox-count');
+  const btnEl     = document.getElementById('btn-refresh-inbox');
+
+  listEl.style.display    = 'none';
+  loadingEl.style.display = 'block';
+  btnEl.classList.add('loading');
+
+  try {
+    const res = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .listInboxFiles();
+    });
+
+    loadingEl.style.display = 'none';
+    listEl.style.display    = 'block';
+    btnEl.classList.remove('loading');
+
+    if (!res || !res.success) throw new Error(res?.message || 'โหลด INBOX ไม่สำเร็จ');
+
+    const files = res.data || [];
+    countEl.textContent = files.length;
+
+    if (files.length === 0) {
+      listEl.innerHTML = `
+        <div class="inbox-empty">
+          <div class="inbox-empty-icon">📭</div>
+          <div style="font-size:0.875rem;font-weight:600;">ไม่มีไฟล์ใน INBOX</div>
+          <div style="font-size:0.78rem;margin-top:4px;">อัปโหลดไฟล์สแกนมาไว้ใน Folder INBOX ใน Drive</div>
+        </div>`;
+      return;
+    }
+
+    listEl.innerHTML = files.map(f => `
+      <div class="inbox-file-item" id="inbox-item-${App.escHtml(f.id)}"
+        onclick="selectFile(${JSON.stringify(f)})">
+        <div class="inbox-file-icon ${getFileIconClass(f.mimeType)}">
+          ${getFileEmoji(f.mimeType)}
+        </div>
+        <div style="min-width:0;flex:1;">
+          <div class="inbox-file-name">${App.escHtml(f.name)}</div>
+          <div class="inbox-file-meta">${App.escHtml(f.sizeLabel)} • ${App.escHtml(f.createdAtTH)}</div>
+        </div>
+      </div>`).join('');
+
+  } catch (e) {
+    loadingEl.style.display = 'none';
+    listEl.style.display    = 'block';
+    btnEl.classList.remove('loading');
+    listEl.innerHTML = `
+      <div class="inbox-empty">
+        <div class="inbox-empty-icon">⚠️</div>
+        <div style="font-size:0.875rem;color:var(--c-danger);">โหลดไม่สำเร็จ — ${App.escHtml(e.message)}</div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="loadInboxFiles()">ลองใหม่</button>
+      </div>`;
+  }
+}
+
+// ─── Select File ──────────────────────────────────────────────
+function selectFile(fileObj) {
+  // Deselect previous
+  document.querySelectorAll('.inbox-file-item.selected')
+    .forEach(el => el.classList.remove('selected'));
+
+  // Select current
+  const item = document.getElementById(`inbox-item-${fileObj.id}`);
+  if (item) item.classList.add('selected');
+
+  state.selectedFileId   = fileObj.id;
+  state.selectedFileName = fileObj.name;
+  state.selectedMime     = fileObj.mimeType;
+
+  // Show preview panel
+  document.getElementById('file-preview-frame').src = fileObj.previewUrl;
+  document.getElementById('file-open-link').href    = fileObj.url;
+  document.getElementById('file-selected-preview').classList.add('show');
+
+  // Remove no-file overlay
+  document.getElementById('no-file-overlay').style.display = 'none';
+
+  // Enable submit (if form is valid check will happen on submit)
+  document.getElementById('btn-submit').disabled = false;
+}
+
+function clearSelectedFile() {
+  state.selectedFileId   = null;
+  state.selectedFileName = '';
+
+  document.querySelectorAll('.inbox-file-item.selected')
+    .forEach(el => el.classList.remove('selected'));
+
+  document.getElementById('file-preview-frame').src = 'about:blank';
+  document.getElementById('file-selected-preview').classList.remove('show');
+  document.getElementById('no-file-overlay').style.display = '';
+  document.getElementById('btn-submit').disabled = true;
+}
+
+// ─── Peek Next Doc Number ─────────────────────────────────────
+async function peekNextDocNo() {
+  try {
+    const res = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .peekDocumentNumber('external', '');
+    });
+    if (res && res.success) {
+      state.nextDocNo = res.data.docNo;
+      document.getElementById('doc-no-peek-value').textContent = res.data.docNo;
+    }
+  } catch (_) {
+    // Non-critical — peek is just informational
+  }
+}
+
+// ─── Dept Checkboxes ─────────────────────────────────────────
+function populateDeptCheckboxes() {
+  const container = document.getElementById('dept-checkboxes');
+  container.innerHTML = DEPARTMENTS.map(d => `
+    <label class="dept-check-item" for="chk-dept-${d}">
+      <input type="checkbox" id="chk-dept-${d}" value="${d}"
+        onchange="updateAssignedDepts()">
+      <span class="dept-check-label">${d}</span>
+    </label>`).join('');
+}
+
+function updateAssignedDepts() {
+  state.assignedDepts = Array.from(
+    document.querySelectorAll('#dept-checkboxes input[type="checkbox"]:checked')
+  ).map(cb => cb.value);
+
+  document.querySelectorAll('.dept-check-item').forEach(item => {
+    const cb = item.querySelector('input[type="checkbox"]');
+    item.classList.toggle('checked', cb.checked);
+  });
+}
+
+// ─── Badge Selectors (urgency / secrecy) ─────────────────────
+function selectBadge(type, value) {
+  state[type] = value;
+
+  const container = document.getElementById(`${type}-selector`);
+  container.querySelectorAll('.badge-option').forEach(opt => {
+    const optVal = opt.getAttribute('data-value');
+    // Remove all selected-* classes
+    opt.className = opt.className.replace(/\bselected-\S+/g, '').trim();
+    if (optVal === value) {
+      opt.classList.add(`selected-${value}`);
+    }
+  });
+}
+
+// ─── Submit ───────────────────────────────────────────────────
+async function submitReceive() {
+  const subject  = document.getElementById('input-subject').value.trim();
+  const fromOrg  = document.getElementById('input-from-org').value.trim();
+  const receiver = document.getElementById('input-receiver').value.trim();
+  const docDate  = document.getElementById('input-doc-date').value;
+
+  // Validate
+  if (!state.selectedFileId) { Swal2.toast('กรุณาเลือกไฟล์จาก INBOX', 'warning'); return; }
+  if (!subject)              { Swal2.toast('กรุณากรอกชื่อเรื่องเอกสาร', 'warning'); document.getElementById('input-subject').focus(); return; }
+  if (!fromOrg)              { Swal2.toast('กรุณากรอกหน่วยงานที่ส่ง', 'warning'); document.getElementById('input-from-org').focus(); return; }
+  if (!receiver)             { Swal2.toast('กรุณากรอกผู้รับ (เรียน)', 'warning'); document.getElementById('input-receiver').focus(); return; }
+  if (!docDate)              { Swal2.toast('กรุณาระบุวันที่ในหนังสือ', 'warning'); return; }
+
+  const assignedLabel = state.assignedDepts.length
+    ? state.assignedDepts.join(', ')
+    : '(ไม่ระบุ)';
+
+  const confirmResult = await Swal.fire({
+    title: 'ยืนยันการลงรับ?',
+    html: `
+      <div style="font-family:Sarabun,sans-serif;text-align:left;font-size:0.9rem;line-height:1.8;">
+        <div><b>ไฟล์:</b> ${App.escHtml(state.selectedFileName)}</div>
+        <div><b>เรื่อง:</b> ${App.escHtml(subject)}</div>
+        <div><b>จาก:</b> ${App.escHtml(fromOrg)}</div>
+        <div><b>เรียน:</b> ${App.escHtml(receiver)}</div>
+        <div><b>วันที่:</b> ${formatDateTH(docDate)}</div>
+        <div><b>ฝ่ายที่มอบหมาย:</b> ${App.escHtml(assignedLabel)}</div>
+        <div style="margin-top:8px;padding:8px 12px;background:var(--c-warning-light);border-radius:8px;color:var(--c-warning-text);font-size:0.82rem;">
+          ⚠️ ไฟล์จะถูกย้ายออกจาก INBOX ไปยัง Digital Archive ทันที
+        </div>
+      </div>`,
+    icon: 'question',
+    showCancelButton:   true,
+    confirmButtonText:  '✅ ลงรับเอกสาร',
+    cancelButtonText:   'ยกเลิก',
+    confirmButtonColor: '#2563eb',
+    cancelButtonColor:  '#6b7280',
+  });
+
+  if (!confirmResult.isConfirmed) return;
+
+  Swal2.loading('กำลังลงรับและย้ายไฟล์ไปยัง Archive...');
+  document.getElementById('btn-submit').disabled = true;
+
+  const params = {
+    selectedFileId: state.selectedFileId,
+    subject,
+    fromOrg,
+    receiver,
+    assignedDepts: state.assignedDepts,
+    docDate,
+    urgency:       state.urgency,
+    secrecy:       state.secrecy
+  };
+
+  try {
+    const res = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .receiveExternalDocument(params);
+    });
+
+    Swal2.close();
+
+    if (!res || !res.success) throw new Error(res?.message || 'ลงรับไม่สำเร็จ');
+
+    await Swal.fire({
+      title: '✅ ลงรับสำเร็จ!',
+      html: `
+        <div style="font-family:Sarabun,sans-serif;text-align:left;padding: 0 8px;line-height:1.8;font-size:0.9rem;">
+          <div>เลขที่รับ: <b style="color:var(--c-primary);font-size:1rem;">${App.escHtml(res.data.docNo)}</b></div>
+          <div>เรื่อง: ${App.escHtml(subject)}</div>
+          <div style="margin-top:6px;font-size:0.82rem;color:var(--c-text-muted);">
+            บันทึก Archive: ${App.escHtml(res.data.archivePath)}<br>
+            ส่งให้ผู้ช่วยผู้จัดการลงนาม (Step 2) แล้ว
+          </div>
+        </div>`,
+      icon: 'success',
+      showCancelButton:  true,
+      confirmButtonText: 'ลงรับเอกสารต่อ',
+      cancelButtonText:  'ดูรายการเอกสาร',
+      confirmButtonColor: '#2563eb',
+      cancelButtonColor:  '#6b7280'
+    }).then(r => {
+      if (r.isConfirmed) {
+        resetForm();
+        loadInboxFiles();
+        peekNextDocNo();
+      } else {
+        Nav.go('doc-external');
+      }
+    });
+
+  } catch (e) {
+    Swal2.close();
+    document.getElementById('btn-submit').disabled = false;
+    Swal2.error('ลงรับไม่สำเร็จ', App.escHtml(e.message || 'กรุณาลองใหม่'));
+  }
+}
+
+// ─── Reset Form ───────────────────────────────────────────────
+function resetForm() {
+  clearSelectedFile();
+
+  document.getElementById('input-subject').value  = '';
+  document.getElementById('input-from-org').value = '';
+  document.getElementById('input-receiver').value = '';
+  document.getElementById('subject-count').textContent = '0/200';
+
+  state.urgency       = 'normal';
+  state.secrecy       = 'normal';
+  state.assignedDepts = [];
+
+  // Reset badge selectors
+  selectBadge('urgency', 'normal');
+  selectBadge('secrecy', 'normal');
+
+  // Reset dept checkboxes
+  document.querySelectorAll('#dept-checkboxes input[type="checkbox"]')
+    .forEach(cb => { cb.checked = false; });
+  document.querySelectorAll('.dept-check-item').forEach(el => el.classList.remove('checked'));
+}
+
+// ─── UI Helpers ───────────────────────────────────────────────
+function getFileIconClass(mimeType) {
+  if (mimeType === 'application/pdf') return 'pdf';
+  if (mimeType.includes('word') || mimeType.includes('wordprocessing')) return 'word';
+  if (mimeType.startsWith('image/')) return 'image';
+  return '';
+}
+
+function getFileEmoji(mimeType) {
+  if (mimeType === 'application/pdf') return '📕';
+  if (mimeType.includes('word') || mimeType.includes('wordprocessing')) return '📘';
+  if (mimeType.startsWith('image/')) return '🖼️';
+  return '📄';
+}
+
+function getRoleLabel(role) {
+  const m = { officer:'เจ้าหน้าที่', dept_head:'หัวหน้าฝ่าย', asst_manager:'ผู้ช่วยผู้จัดการ', manager:'ผู้จัดการ' };
+  return m[role] || role;
+}
+
+function formatDateTH(isoDate) {
+  if (!isoDate) return '-';
+  const d = new Date(isoDate + 'T00:00:00');
+  const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                  'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543}`;
+}
+
+function handleLogout() {
+  Swal2.confirm('ออกจากระบบ?', 'ต้องการออกจากระบบใช่หรือไม่?', 'ออกจากระบบ', 'warning')
+    .then(r => { if (r.isConfirmed) google.script.run.logoutUser(); });
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const isOpen  = sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', !isOpen);
+  overlay.classList.toggle('show', !isOpen);
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('show');
+}
+</script>
+</body>
+</html>

@@ -89,8 +89,15 @@ const FileService = {
    */
   getFileUrl(fileId) {
     try {
-      AuthService.requireAuth();
+      const session = AuthService.requireAuth();
       if (!fileId) return Utils.error('ไม่ระบุ fileId');
+
+      const docs = DbService.getAll(CONFIG.SHEETS.DOCS)
+        .filter(doc => doc.status !== 'deleted');
+      const doc = PermissionService.findDocByFileId(fileId, docs, session);
+      if (!doc) {
+        return Utils.error('ไม่มีสิทธิ์เข้าถึงไฟล์นี้');
+      }
 
       const file = DriveApp.getFileById(fileId);
       return Utils.success({

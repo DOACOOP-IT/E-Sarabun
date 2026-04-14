@@ -145,15 +145,15 @@ const Utils = {
   // ─── Validation ───────────────────────────────────────────────
 
   /**
-   * ตรวจสอบ username (ตัวอักษร/ตัวเลข/_ 3-30 ตัวอักษร)
+   * ตรวจสอบ username (ตัวอักษร/ตัวเลข/_/. 3-30 ตัวอักษร)
    * @param {string} username
    * @returns {{ valid: boolean, message: string }}
    */
   validateUsername(username) {
     if (this.isEmpty(username))
       return { valid: false, message: 'กรุณากรอก Username' };
-    if (!/^[a-zA-Z0-9_]{3,30}$/.test(username))
-      return { valid: false, message: 'Username ต้องเป็นตัวอักษร/ตัวเลข 3-30 ตัว' };
+    if (!/^[a-zA-Z0-9_.]{3,30}$/.test(username))
+      return { valid: false, message: 'Username ต้องเป็นตัวอักษร/ตัวเลข/จุด/ขีดล่าง 3-30 ตัว' };
     return { valid: true, message: '' };
   },
 

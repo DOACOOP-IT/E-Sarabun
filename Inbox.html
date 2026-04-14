@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>กล่องงานค้าง — E-Sarabun</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <?!= include('Stylesheet') ?>
+  <style>
+    .hero-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px; }
+    .hero-box { background:var(--c-bg-card); border-radius:var(--r-xl); padding:18px 20px; box-shadow:var(--shadow-card); }
+    .hero-box .label { font-size:0.8rem; color:var(--c-text-muted); }
+    .hero-box .value { font-size:1.8rem; font-weight:800; color:var(--c-primary); margin-top:4px; }
+    .split-grid { display:grid; grid-template-columns:1.2fr .8fr; gap:20px; }
+    .step-tag { display:inline-flex; align-items:center; gap:6px; background:var(--c-primary-pale); color:var(--c-primary-dark); border-radius:999px; padding:3px 10px; font-size:0.72rem; font-weight:700; }
+    .notif-feed { display:grid; gap:10px; }
+    .notif-card { background:var(--c-bg-card); border-radius:var(--r-lg); padding:14px 16px; box-shadow:var(--shadow-card); }
+    @media (max-width: 992px) { #hamburger { display:flex !important; } .split-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div id="sidebar-overlay" onclick="App.toggleSidebar()"></div>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header"><div class="sidebar-logo">ส</div><div><div class="sidebar-title">E-Sarabun</div><div class="sidebar-subtitle">ระบบสารบรรณ</div></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">เมนูหลัก</div>
+      <a class="nav-item" data-page="dashboard" onclick="Nav.go('dashboard')">หน้าหลัก</a>
+      <a class="nav-item active" data-page="inbox" onclick="Nav.go('inbox')">กล่องงานค้าง<span class="nav-badge" id="nav-inbox-count" style="display:none">0</span></a>
+      <div class="nav-section-label" style="margin-top:8px">เอกสาร</div>
+      <a class="nav-item" data-page="doc-internal" onclick="Nav.go('doc-internal')">เอกสารภายใน</a>
+      <a class="nav-item" data-page="doc-external" onclick="Nav.go('doc-external')">เอกสารภายนอก</a>
+      <a class="nav-item" data-page="archive" onclick="Nav.go('archive')">แฟ้มจัดเก็บ</a>
+      <div id="nav-admin" style="display:none"><div class="nav-section-label" style="margin-top:8px">ผู้ดูแลระบบ</div><a class="nav-item" data-page="admin" onclick="Nav.go('admin')">จัดการระบบ</a></div>
+    </nav>
+    <div class="sidebar-footer"><div class="sidebar-user"><div class="sidebar-user-avatar" id="sidebar-avatar">-</div><div style="flex:1;min-width:0;"><div class="sidebar-user-name" id="sidebar-name">กำลังโหลด...</div><div class="sidebar-user-role" id="sidebar-role"></div></div><button onclick="handleLogout()" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.55);padding:4px;">ออก</button></div></div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;"><button id="hamburger" onclick="App.toggleSidebar()" style="display:none;background:none;border:none;cursor:pointer;padding:4px;">☰</button><span class="topbar-title">กล่องงานค้าง</span></div>
+      <div class="topbar-actions"><button class="notif-btn" onclick="NotifManager.toggle()" title="การแจ้งเตือน"><span class="notif-dot" id="notif-dot" style="display:none"></span>🔔</button></div>
+    </header>
+    <div class="notif-panel" id="notif-panel"><div class="notif-header"><span class="notif-header-title">การแจ้งเตือน</span><button class="btn btn-sm btn-ghost" onclick="NotifManager.readAll()">อ่านทั้งหมด</button></div><div class="notif-list"></div></div>
+
+    <div class="page-body">
+      <div style="margin-bottom:20px;"><div class="text-heading">งานที่รอการดำเนินการ</div><div style="color:var(--c-text-muted);font-size:0.9rem;margin-top:4px;">รวมงานอนุมัติ งานรับทราบ และแจ้งเตือนล่าสุดของผู้ใช้ปัจจุบัน</div></div>
+      <div class="hero-grid" id="hero-grid"></div>
+
+      <div class="split-grid">
+        <div class="card">
+          <div class="card-header"><div style="font-weight:700;">รายการงานค้าง</div><button class="btn btn-sm btn-primary" onclick="Nav.go('approve')">เปิดหน้าดำเนินการ</button></div>
+          <div class="card-body" style="padding:0;">
+            <div class="table-wrapper" style="box-shadow:none;border-radius:0;">
+              <table class="table">
+                <thead><tr><th>เลขที่</th><th>เรื่อง</th><th>ขั้นตอน</th><th>อัปเดตล่าสุด</th><th></th></tr></thead>
+                <tbody id="pending-body"><tr><td colspan="5" style="text-align:center;color:var(--c-text-muted);padding:24px;">กำลังโหลดข้อมูล...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><div style="font-weight:700;">ทางลัด</div></div>
+            <div class="card-body" style="display:grid;gap:10px;">
+              <button class="btn btn-primary" onclick="Nav.go('approve')">งานรอดำเนินการ</button>
+              <button class="btn btn-ghost" onclick="Nav.go('create-internal')">สร้างเอกสารภายใน</button>
+              <button class="btn btn-ghost" id="quick-receive-external-btn" onclick="Nav.go('receive-external')" style="display:none;">ลงรับเอกสารภายนอก</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div style="font-weight:700;">แจ้งเตือนล่าสุด</div></div>
+            <div class="card-body"><div class="notif-feed" id="notif-feed"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<?!= include('JavaScript') ?>
+<script>
+let currentSession = null;
+let pendingDocs = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await bootPage();
+  await Promise.all([loadPendingDocs(), loadNotificationFeed()]);
+});
+
+async function bootPage() {
+  currentSession = await API.getSession().catch(() => null);
+  if (!currentSession) { Nav.go('login'); return; }
+  await Nav.init();
+  App.setActiveNav('inbox');
+  if (['manager', 'asst_manager'].includes(currentSession.role)) document.getElementById('nav-admin').style.display = 'block';
+  document.getElementById('sidebar-avatar').textContent = (currentSession.displayName || currentSession.username || '-').charAt(0);
+  document.getElementById('sidebar-name').textContent = currentSession.displayName || currentSession.username;
+  document.getElementById('sidebar-role').textContent = roleLabel(currentSession.role) + ' • ' + (currentSession.department || '-');
+  if (canReceiveExternal(currentSession)) {
+    document.getElementById('quick-receive-external-btn').style.display = 'inline-flex';
+  }
+  NotifManager.init('notif-panel', 'notif-dot');
+}
+
+async function loadPendingDocs() {
+  const res = await API.call('getPendingDocsForUser').catch(() => null);
+  pendingDocs = res && res.success ? (res.data || []) : [];
+  renderHero();
+  renderPendingTable();
+  updateInboxBadge();
+}
+
+function renderHero() {
+  const approveCount = pendingDocs.filter(d => d.stepAction !== 'acknowledge').length;
+  const ackCount = pendingDocs.filter(d => d.stepAction === 'acknowledge').length;
+  document.getElementById('hero-grid').innerHTML = `
+    <div class="hero-box"><div class="label">งานค้างทั้งหมด</div><div class="value">${App.formatNum(pendingDocs.length)}</div></div>
+    <div class="hero-box"><div class="label">รออนุมัติ/พิจารณา</div><div class="value">${App.formatNum(approveCount)}</div></div>
+    <div class="hero-box"><div class="label">รอรับทราบ</div><div class="value">${App.formatNum(ackCount)}</div></div>`;
+}
+
+function renderPendingTable() {
+  const body = document.getElementById('pending-body');
+  if (!pendingDocs.length) {
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--c-text-muted);padding:24px;">ไม่มีงานค้างในตอนนี้</td></tr>';
+    return;
+  }
+  body.innerHTML = pendingDocs.map(doc => `
+    <tr>
+      <td>${App.escHtml(doc.docNo || '-')}</td>
+      <td><div style="font-weight:700;">${App.escHtml(App.truncate(doc.subject, 80))}</div><div class="text-xs" style="color:var(--c-text-muted);">${App.escHtml(doc.docType === 'internal' ? 'เอกสารภายใน' : 'เอกสารภายนอก')}</div></td>
+      <td><span class="step-tag">${App.escHtml(doc.stepLabel || 'รอดำเนินการ')}</span></td>
+      <td>${App.escHtml(_formatDate(doc.updateAt || doc.createdAt))}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="Nav.go('approve')">เปิด</button></td>
+    </tr>`).join('');
+}
+
+async function loadNotificationFeed() {
+  const wrap = document.getElementById('notif-feed');
+  const res = await API.getNotifications().catch(() => null);
+  if (!res || !res.success || !(res.data || []).length) {
+    wrap.innerHTML = '<div style="color:var(--c-text-muted);font-size:0.9rem;">ไม่มีแจ้งเตือนใหม่</div>';
+    return;
+  }
+  wrap.innerHTML = res.data.slice(0, 6).map(item => `
+    <div class="notif-card">
+      <div style="font-weight:700;line-height:1.45;">${App.escHtml(item.message || '-')}</div>
+      <div class="text-xs" style="color:var(--c-text-muted);margin-top:6px;">${App.timeAgo(item.createdAt)}</div>
+    </div>`).join('');
+}
+
+function updateInboxBadge() {
+  const badge = document.getElementById('nav-inbox-count');
+  if (!badge) return;
+  badge.style.display = pendingDocs.length > 0 ? 'inline-block' : 'none';
+  badge.textContent = pendingDocs.length;
+}
+
+function _formatDate(value) {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('th-TH');
+}
+
+function roleLabel(role) {
+  return ({ officer: 'เจ้าหน้าที่', dept_head: 'หัวหน้าฝ่าย', asst_manager: 'ผู้ช่วยผู้จัดการ', manager: 'ผู้จัดการ' })[role] || role;
+}
+
+function canReceiveExternal(session) {
+  return !!session && session.role === 'officer' && session.department === 'ฝอก.';
+}
+
+function handleLogout() {
+  Swal2.confirm('ออกจากระบบ?', 'คุณต้องการออกจากระบบใช่หรือไม่', 'ออกจากระบบ').then(async result => {
+    if (!result.isConfirmed) return;
+    await API.logout().catch(() => null);
+    Nav.go('login');
+  });
+}
+</script>
+</body>
+</html>

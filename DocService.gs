@@ -88,9 +88,12 @@ const DocService = {
    */
   getDocument(id) {
     try {
-      AuthService.requireAuth();
+      const session = AuthService.requireAuth();
       const doc = DbService.findOne(CONFIG.SHEETS.DOCS, 'id', id);
       if (!doc) return Utils.error('ไม่พบเอกสาร');
+      if (!PermissionService.canViewDoc(doc, session)) {
+        return Utils.error('ไม่มีสิทธิ์ดูเอกสารนี้');
+      }
       return Utils.success(this._formatDoc(doc));
     } catch (e) {
       return Utils.error(e.message);
@@ -112,21 +115,7 @@ const DocService = {
       let docs = DbService.getAll(CONFIG.SHEETS.DOCS)
         .filter(d => d.status !== 'deleted');
 
-      // Filter ตาม role — เจ้าหน้าที่เห็นแค่ของฝ่ายตัวเอง
-      if (session.role === CONFIG.ROLES.OFFICER) {
-        docs = docs.filter(d =>
-          d.createdBy === session.username ||
-          d.sender === session.department ||
-          d.receiver === session.department
-        );
-      } else if (session.role === CONFIG.ROLES.DEPT_HEAD) {
-        docs = docs.filter(d =>
-          d.sender === session.department ||
-          d.receiver === session.department ||
-          d.createdBy === session.username
-        );
-      }
-      // asst_manager และ manager เห็นทั้งหมด
+      docs = PermissionService.filterVisibleDocs(docs, session);
 
       // Apply filters
       if (filters.docType) docs = docs.filter(d => d.docType === filters.docType);
@@ -194,20 +183,21 @@ const DocService = {
     try {
       const allDocs = DbService.getAll(CONFIG.SHEETS.DOCS)
         .filter(d => d.status !== 'deleted');
+      const visibleDocs = PermissionService.filterVisibleDocs(allDocs, session);
 
       const stats = {
-        totalDocs:     allDocs.length,
-        pending:       allDocs.filter(d => d.status === CONFIG.DOC_STATUS.PENDING).length,
-        inProgress:    allDocs.filter(d => d.status === CONFIG.DOC_STATUS.IN_PROGRESS).length,
-        completed:     allDocs.filter(d => d.status === CONFIG.DOC_STATUS.COMPLETED).length,
-        rejected:      allDocs.filter(d => d.status === CONFIG.DOC_STATUS.REJECTED).length,
-        internal:      allDocs.filter(d => d.docType === CONFIG.DOC_TYPES.INTERNAL).length,
-        external:      allDocs.filter(d => d.docType === CONFIG.DOC_TYPES.EXTERNAL).length,
-        recentDocs:    allDocs
+        totalDocs:     visibleDocs.length,
+        pending:       visibleDocs.filter(d => d.status === CONFIG.DOC_STATUS.PENDING).length,
+        inProgress:    visibleDocs.filter(d => d.status === CONFIG.DOC_STATUS.IN_PROGRESS).length,
+        completed:     visibleDocs.filter(d => d.status === CONFIG.DOC_STATUS.COMPLETED).length,
+        rejected:      visibleDocs.filter(d => d.status === CONFIG.DOC_STATUS.REJECTED).length,
+        internal:      visibleDocs.filter(d => d.docType === CONFIG.DOC_TYPES.INTERNAL).length,
+        external:      visibleDocs.filter(d => d.docType === CONFIG.DOC_TYPES.EXTERNAL).length,
+        recentDocs:    visibleDocs
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
           .slice(0, 10)
           .map(d => this._formatDoc(d)),
-        pendingForMe:  this._getPendingForUser(allDocs, session)
+        pendingForMe:  this._getPendingForUser(visibleDocs, session)
       };
 
       return Utils.success(stats);
@@ -292,18 +282,6 @@ const DocService = {
    * @private
    */
   _getPendingForUser(allDocs, session) {
-    return allDocs
-      .filter(doc => {
-        const wf = Utils.safeJsonParse(doc.workflow, { steps: [] });
-        const currentStep = wf.steps?.find(s => s.status === 'pending');
-        if (!currentStep) return false;
-
-        // ตรวจว่า session มีสิทธิ์ดำเนินการ step นี้หรือไม่
-        const roleMatch = currentStep.role === session.role;
-        const deptMatch = !currentStep.dept || currentStep.dept === session.department;
-        return roleMatch && deptMatch;
-      })
-      .sort((a, b) => new Date(b.updateAt) - new Date(a.updateAt))
-      .slice(0, 5);
+    return PermissionService.getPendingDocsForSession(allDocs, session).slice(0, 5);
   }
 };

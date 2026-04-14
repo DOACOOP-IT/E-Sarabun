@@ -49,20 +49,14 @@ const WorkflowService = {
         nextStep.status = 'pending';
         newStatus = CONFIG.DOC_STATUS.IN_PROGRESS;
 
-        // แจ้งเตือน step ถัดไป
-        NotifyService.notifyPendingApproval(
-          null, docId, doc.docNo, doc.subject, session.username
-        );
-        this._notifyStepUsers(nextStep, docId, doc.docNo, doc.subject);
+        // แจ้งเตือนผู้รับผิดชอบ step ถัดไปอัตโนมัติ
+        WorkflowNotify.onStepPending(nextStep, docId, doc.docNo, doc.subject, session.username);
       } else {
         // ผ่านทุก step แล้ว
         newStatus = CONFIG.DOC_STATUS.COMPLETED;
 
-        // แจ้งผู้สร้าง
-        NotifyService.notifyApproved(
-          doc.createdBy, docId, doc.docNo, doc.subject,
-          session.username
-        );
+        // แจ้งผู้สร้างและผู้ดำเนินการว่าเสร็จสิ้น
+        WorkflowNotify.onCompleted(docId, doc.docNo, doc.subject, session.username, doc.createdBy);
       }
 
       // บันทึก workflow ที่อัปเดตกลับลง Sheets
@@ -138,11 +132,8 @@ const WorkflowService = {
         updateAt:    Utils.now()
       });
 
-      // แจ้งผู้สร้าง
-      NotifyService.notifyRejected(
-        doc.createdBy, docId, doc.docNo, doc.subject,
-        session.username, remark
-      );
+      // แจ้งผู้สร้างว่าถูกปฏิเสธหรือส่งคืน
+      WorkflowNotify.onRejected(docId, doc.docNo, doc.subject, session.username, doc.createdBy, remark, returnToCreator);
 
       LogService.workflowAction(session.username, docId, 'REJECT', currentStep.step, remark);
 
@@ -174,6 +165,9 @@ const WorkflowService = {
       if (!currentStep || currentStep.action !== 'acknowledge')
         return Utils.error('ไม่ใช่ขั้นตอนรับทราบ');
 
+      const authCheck = this._checkStepPermission(currentStep, session);
+      if (!authCheck.allowed) return Utils.error(authCheck.message);
+
       // บันทึกการรับทราบของ dept นี้
       if (!currentStep.acknowledgedBy) currentStep.acknowledgedBy = [];
       currentStep.acknowledgedBy.push({
@@ -188,6 +182,8 @@ const WorkflowService = {
       const acknowledgedDepts = currentStep.acknowledgedBy.map(a => a.dept);
       const allAcknowledged   = assignedDepts.every(d => acknowledgedDepts.includes(d));
 
+      const remaining = assignedDepts.filter(d => !acknowledgedDepts.includes(d));
+
       if (allAcknowledged) {
         currentStep.status = 'approved';
         DbService.updateById(CONFIG.SHEETS.DOCS, docId, {
@@ -195,13 +191,18 @@ const WorkflowService = {
           status:   CONFIG.DOC_STATUS.COMPLETED,
           updateAt: Utils.now()
         });
+        WorkflowNotify.onAcknowledged(docId, doc.docNo, doc.subject,
+          session.username, session.department, []);
+        LogService.workflowAction(session.username, docId, 'ACKNOWLEDGE', currentStep.step, remark);
         return Utils.success(null, 'ทุกฝ่ายรับทราบแล้ว — เอกสารเสร็จสิ้น');
       } else {
         DbService.updateById(CONFIG.SHEETS.DOCS, docId, {
           workflow: Utils.safeJsonStringify(workflow),
           updateAt: Utils.now()
         });
-        const remaining = assignedDepts.filter(d => !acknowledgedDepts.includes(d));
+        WorkflowNotify.onAcknowledged(docId, doc.docNo, doc.subject,
+          session.username, session.department, remaining);
+        LogService.workflowAction(session.username, docId, 'ACKNOWLEDGE', currentStep.step, remark);
         return Utils.success(null, `รับทราบแล้ว รอฝ่าย: ${remaining.join(', ')}`);
       }
 
@@ -257,31 +258,7 @@ const WorkflowService = {
    * @private
    */
   _checkStepPermission(step, session) {
-    const roleMatch = step.role === session.role;
-    if (!roleMatch) {
-      return {
-        allowed: false,
-        message: `ขั้นตอนนี้ต้องดำเนินการโดย ${this._getRoleLabel(step.role)}`
-      };
-    }
-
-    if (step.action === 'acknowledge') {
-      // ตรวจว่า dept ของ session อยู่ใน assignedDepts
-      const assigned = step.assignedDepts || [];
-      if (assigned.length > 0 && !assigned.includes(session.department)) {
-        return {
-          allowed: false,
-          message: `ฝ่ายของคุณ (${session.department}) ไม่ได้รับมอบหมายให้รับทราบเอกสารนี้`
-        };
-      }
-    } else if (step.dept && step.dept !== session.department) {
-      return {
-        allowed: false,
-        message: `ขั้นตอนนี้ต้องดำเนินการโดยฝ่าย ${step.dept}`
-      };
-    }
-
-    return { allowed: true };
+    return PermissionService.checkStepPermission(step, session);
   },
 
   /**

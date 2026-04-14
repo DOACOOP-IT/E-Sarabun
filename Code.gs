@@ -27,13 +27,16 @@ function doGet(e) {
 
   // Route map
   const routes = {
-    'login':        { template: 'Login',       title: 'เข้าสู่ระบบ'              },
-    'dashboard':    { template: 'Dashboard',    title: 'หน้าหลัก'                 },
-    'doc-internal': { template: 'DocInternal',  title: 'เอกสารภายใน'              },
-    'doc-external': { template: 'DocExternal',  title: 'เอกสารภายนอก'             },
-    'inbox':        { template: 'Inbox',        title: 'กล่องงานค้าง'              },
-    'archive':      { template: 'Archive',      title: 'แฟ้มจัดเก็บดิจิทัล'       },
-    'admin':        { template: 'Admin',        title: 'จัดการระบบ'               }
+    'login':           { template: 'Login',           title: 'เข้าสู่ระบบ'              },
+    'dashboard':       { template: 'Dashboard',       title: 'หน้าหลัก'                 },
+    'doc-internal':    { template: 'DocInternal',     title: 'เอกสารภายใน'              },
+    'create-internal':   { template: 'CreateInternal',   title: 'สร้างเอกสารภายใน'         },
+    'doc-external':       { template: 'DocExternal',      title: 'เอกสารภายนอก'             },
+    'receive-external':   { template: 'ReceiveExternal',  title: 'ลงรับเอกสารภายนอก'       },
+    'inbox':           { template: 'Inbox',           title: 'กล่องงานค้าง'              },
+    'approve':         { template: 'Approve',         title: 'งานรอดำเนินการ'            },
+    'archive':         { template: 'ArchivePage',     title: 'แฟ้มจัดเก็บดิจิทัล'       },
+    'admin':           { template: 'Admin',           title: 'จัดการระบบ'               }
   };
 
   const route = routes[page] || routes['dashboard'];
@@ -80,11 +83,31 @@ function doPost(e) {
       case 'updateDoc':         result = DocService.updateDocument(data.id, data); break;
       case 'getDashboard':      result = DocService.getDashboardStats(AuthService.getSession()); break;
 
+      // ─── Internal Doc (Phase 3) ───
+      case 'processInternalDoc':  result = InternalDoc.processAndSaveFile(data); break;
+
+      // ─── External Doc (Phase 4) ───
+      case 'listInboxFiles':       result = ExternalDoc.listInboxFiles(); break;
+      case 'receiveExternalDoc':   result = ExternalDoc.receiveDocument(data); break;
+
       // ─── Workflow ───
-      case 'approveDoc':      result = WorkflowService.approve(data); break;
-      case 'rejectDoc':       result = WorkflowService.reject(data); break;
-      case 'acknowledgeDoc':  result = WorkflowService.acknowledge(data); break;
-      case 'getWorkflow':     result = WorkflowService.getWorkflowStatus(data.id); break;
+      case 'approveDoc':         result = WorkflowService.approve(data); break;
+      case 'rejectDoc':          result = WorkflowService.reject(data); break;
+      case 'acknowledgeDoc':     result = WorkflowService.acknowledge(data); break;
+      case 'getWorkflow':        result = WorkflowService.getWorkflowStatus(data.id); break;
+
+      // ─── Workflow Query (Phase 5) ───
+      case 'getPendingDocs':     result = WorkflowQuery.getPendingDocs(); break;
+      case 'getDocDetail':       result = WorkflowQuery.getDocDetail(data.docId); break;
+      case 'getMyPendingCount':  result = WorkflowQuery.getMyPendingCount(); break;
+
+      // ─── Dashboard (Phase 6) ───
+      case 'getFullDashboard':   result = DashboardService.getStats(); break;
+
+      // ─── Notification Broadcast (Phase 6) ───
+      case 'broadcastNotify':    result = (AuthService.requireAuth().role === CONFIG.ROLES.MANAGER)
+                                   ? (WorkflowNotify.broadcast(data.message), Utils.success(null, 'ส่งแจ้งเตือนแล้ว'))
+                                   : Utils.error('ไม่มีสิทธิ์'); break;
 
       // ─── Files ───
       case 'uploadFile':        result = FileService.uploadFile(data); break;
@@ -208,6 +231,51 @@ function uploadDocumentFile(params) {
   return FileService.uploadFile(params);
 }
 
+/**
+ * Phase 3 — บันทึกเอกสารภายใน:
+ * แปลง Word→PDF, บันทึก Archive, เพิ่ม DB_DOCS + สร้าง Workflow
+ */
+function processAndSaveInternalDoc(params) {
+  return InternalDoc.processAndSaveFile(params);
+}
+
+/**
+ * Phase 4 — ดึงรายการไฟล์ใน INBOX (Google Drive)
+ * สำหรับเจ้าหน้าที่ ฝอก. เลือกไฟล์เพื่อลงรับ
+ */
+function listInboxFiles() {
+  return ExternalDoc.listInboxFiles();
+}
+
+/**
+ * Phase 4 — ลงรับเอกสารภายนอก:
+ * จองเลข → ย้ายไฟล์ INBOX→Archive → บันทึก DB_DOCS + Workflow
+ */
+function receiveExternalDocument(params) {
+  return ExternalDoc.receiveDocument(params);
+}
+
+/**
+ * Phase 5 — ดึงรายการเอกสารที่รอดำเนินการโดยผู้ใช้ปัจจุบัน
+ */
+function getPendingDocsForUser() {
+  return WorkflowQuery.getPendingDocs();
+}
+
+/**
+ * Phase 5 — ดึงรายละเอียดเอกสารสำหรับหน้า Approve
+ */
+function getDocDetailForApprove(docId) {
+  return WorkflowQuery.getDocDetail(docId);
+}
+
+/**
+ * Phase 5 — นับจำนวนเอกสารรอดำเนินการ (สำหรับ badge)
+ */
+function getMyPendingCount() {
+  return WorkflowQuery.getMyPendingCount();
+}
+
 /** ดึง URL ไฟล์ */
 function getDocumentFileUrl(fileId) {
   return FileService.getFileUrl(fileId);
@@ -230,6 +298,37 @@ function markAllNotificationsRead() {
   const session = AuthService.getSession();
   if (!session) return Utils.error('กรุณาเข้าสู่ระบบ');
   return NotifyService.markAllAsRead(session.username);
+}
+
+/**
+ * Phase 6 — สถิติ Dashboard แบบละเอียด (ผ่าน DashboardService)
+ * — pendingForMe, totalInProgress, completedThisMonth, monthlyTrend, recentActivity
+ */
+function getFullDashboardStats() {
+  return DashboardService.getStats();
+}
+
+/** รายชื่อผู้ใช้สำหรับหน้า Admin */
+function getUsersForAdmin() {
+  return AuthService.getAllUsers();
+}
+
+/** สร้างผู้ใช้ใหม่จากหน้า Admin */
+function createUserByAdmin(userData) {
+  return AuthService.createUser(userData || {});
+}
+
+/** ดึง Log ล่าสุดสำหรับหน้า Admin */
+function getRecentLogsForAdmin(limit) {
+  try {
+    const session = AuthService.requireAuth();
+    if (!PermissionService.canAccessAdmin(session)) {
+      return Utils.error('ไม่มีสิทธิ์ดู log ระบบ');
+    }
+    return Utils.success(LogService.getRecentLogs(limit || 50));
+  } catch (e) {
+    return Utils.error(e.message);
+  }
 }
 
 /** ดึง URL ของ Web App (ใช้สร้าง link ต่าง ๆ) */

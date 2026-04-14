@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>จัดการระบบ — E-Sarabun</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <?!= include('Stylesheet') ?>
+  <style>
+    .split-grid { display:grid; grid-template-columns:1.1fr .9fr; gap:20px; }
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:20px; }
+    .stat-box { background:var(--c-bg-card); border-radius:var(--r-xl); padding:16px 18px; box-shadow:var(--shadow-card); }
+    .stat-box .label { font-size:0.78rem; color:var(--c-text-muted); }
+    .stat-box .value { font-size:1.7rem; font-weight:800; color:var(--c-primary); margin-top:4px; }
+    .log-list { display:grid; gap:10px; }
+    .log-item { background:var(--c-bg-card); border-radius:var(--r-lg); padding:12px 14px; box-shadow:var(--shadow-card); }
+    .inline-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    @media (max-width: 992px) { #hamburger { display:flex !important; } .split-grid, .inline-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div id="sidebar-overlay" onclick="App.toggleSidebar()"></div>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header"><div class="sidebar-logo">ส</div><div><div class="sidebar-title">E-Sarabun</div><div class="sidebar-subtitle">ระบบสารบรรณ</div></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">เมนูหลัก</div>
+      <a class="nav-item" data-page="dashboard" onclick="Nav.go('dashboard')">หน้าหลัก</a>
+      <a class="nav-item" data-page="inbox" onclick="Nav.go('inbox')">กล่องงานค้าง<span class="nav-badge" id="nav-inbox-count" style="display:none">0</span></a>
+      <div class="nav-section-label" style="margin-top:8px">เอกสาร</div>
+      <a class="nav-item" data-page="doc-internal" onclick="Nav.go('doc-internal')">เอกสารภายใน</a>
+      <a class="nav-item" data-page="doc-external" onclick="Nav.go('doc-external')">เอกสารภายนอก</a>
+      <a class="nav-item" data-page="archive" onclick="Nav.go('archive')">แฟ้มจัดเก็บ</a>
+      <div id="nav-admin"><div class="nav-section-label" style="margin-top:8px">ผู้ดูแลระบบ</div><a class="nav-item active" data-page="admin" onclick="Nav.go('admin')">จัดการระบบ</a></div>
+    </nav>
+    <div class="sidebar-footer"><div class="sidebar-user"><div class="sidebar-user-avatar" id="sidebar-avatar">-</div><div style="flex:1;min-width:0;"><div class="sidebar-user-name" id="sidebar-name">กำลังโหลด...</div><div class="sidebar-user-role" id="sidebar-role"></div></div><button onclick="handleLogout()" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.55);padding:4px;">ออก</button></div></div>
+  </aside>
+  <main class="main-content">
+    <header class="topbar"><div style="display:flex;align-items:center;gap:12px;"><button id="hamburger" onclick="App.toggleSidebar()" style="display:none;background:none;border:none;cursor:pointer;padding:4px;">☰</button><span class="topbar-title">จัดการระบบ</span></div><div class="topbar-actions"><button class="notif-btn" onclick="NotifManager.toggle()" title="การแจ้งเตือน"><span class="notif-dot" id="notif-dot" style="display:none"></span>🔔</button></div></header>
+    <div class="notif-panel" id="notif-panel"><div class="notif-header"><span class="notif-header-title">การแจ้งเตือน</span><button class="btn btn-sm btn-ghost" onclick="NotifManager.readAll()">อ่านทั้งหมด</button></div><div class="notif-list"></div></div>
+    <div class="page-body">
+      <div style="margin-bottom:20px;"><div class="text-heading">ผู้ใช้และกิจกรรมระบบ</div><div style="color:var(--c-text-muted);font-size:0.9rem;margin-top:4px;">สำหรับผู้ช่วยผู้จัดการและผู้จัดการ ใช้ดูผู้ใช้งาน สร้างบัญชีใหม่ และติดตาม log</div></div>
+      <div id="access-denied" class="card" style="display:none;padding:40px;text-align:center;"><div style="font-size:2.6rem;margin-bottom:12px;">🔒</div><div class="text-title" style="margin-bottom:8px;">ไม่มีสิทธิ์เข้าถึง</div><div style="color:var(--c-text-muted);">หน้านี้ใช้ได้เฉพาะผู้ช่วยผู้จัดการและผู้จัดการ</div></div>
+      <div id="admin-content" style="display:none;">
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="split-grid">
+          <div>
+            <div class="card" style="margin-bottom:20px;">
+              <div class="card-header"><div style="font-weight:700;">รายชื่อผู้ใช้</div><button class="btn btn-sm btn-ghost" onclick="loadUsers()">รีเฟรช</button></div>
+              <div class="card-body" style="padding:0;">
+                <div class="table-wrapper" style="box-shadow:none;border-radius:0;">
+                  <table class="table">
+                    <thead><tr><th>Username</th><th>ชื่อแสดง</th><th>Role</th><th>แผนก</th></tr></thead>
+                    <tbody id="user-body"><tr><td colspan="4" style="text-align:center;color:var(--c-text-muted);padding:24px;">กำลังโหลดข้อมูล...</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="card" id="create-user-card" style="display:none;">
+              <div class="card-header"><div style="font-weight:700;">สร้างผู้ใช้ใหม่</div></div>
+              <div class="card-body">
+                <div class="inline-grid">
+                  <div class="form-group"><label class="form-label">Username</label><input id="new-username" class="form-control" placeholder="เช่น officer.fss"></div>
+                  <div class="form-group"><label class="form-label">ชื่อแสดง</label><input id="new-display" class="form-control" placeholder="ชื่อผู้ใช้"></div>
+                </div>
+                <div class="inline-grid">
+                  <div class="form-group"><label class="form-label">Password</label><input id="new-password" class="form-control" type="password" placeholder="อย่างน้อย 8 ตัวอักษร"></div>
+                  <div class="form-group"><label class="form-label">Role</label><select id="new-role" class="form-control"><option value="officer">officer</option><option value="dept_head">dept_head</option><option value="asst_manager">asst_manager</option><option value="manager">manager</option></select></div>
+                </div>
+                <div class="form-group"><label class="form-label">Department</label><select id="new-dept" class="form-control"><option value="ฝอก.">ฝอก.</option><option value="ฝสท.">ฝสท.</option><option value="ฝสส.">ฝสส.</option><option value="ฝสช.">ฝสช.</option><option value="ฝบช.">ฝบช.</option><option value="ฝกง.">ฝกง.</option></select></div>
+                <button class="btn btn-primary" id="create-user-btn" onclick="createUser()">สร้างผู้ใช้</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div style="font-weight:700;">กิจกรรมล่าสุด</div><button class="btn btn-sm btn-ghost" onclick="loadLogs()">รีเฟรช</button></div>
+            <div class="card-body"><div class="log-list" id="log-list"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<?!= include('JavaScript') ?>
+<script>
+let currentSession = null;
+let users = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await bootPage();
+  if (!currentSession || !['asst_manager', 'manager'].includes(currentSession.role)) return;
+  await Promise.all([loadUsers(), loadLogs(), updateInboxBadge()]);
+});
+
+async function bootPage() {
+  currentSession = await API.getSession().catch(() => null);
+  if (!currentSession) { Nav.go('login'); return; }
+  await Nav.init();
+  App.setActiveNav('admin');
+  document.getElementById('sidebar-avatar').textContent = (currentSession.displayName || currentSession.username || '-').charAt(0);
+  document.getElementById('sidebar-name').textContent = currentSession.displayName || currentSession.username;
+  document.getElementById('sidebar-role').textContent = roleLabel(currentSession.role) + ' • ' + (currentSession.department || '-');
+  NotifManager.init('notif-panel', 'notif-dot');
+  if (!['asst_manager', 'manager'].includes(currentSession.role)) {
+    document.getElementById('access-denied').style.display = 'block';
+    return;
+  }
+  document.getElementById('admin-content').style.display = 'block';
+  if (currentSession.role === 'manager') document.getElementById('create-user-card').style.display = 'block';
+}
+
+async function loadUsers() {
+  const body = document.getElementById('user-body');
+  body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--c-text-muted);padding:24px;">กำลังโหลดข้อมูล...</td></tr>';
+  const res = await API.call('getUsersForAdmin').catch(() => null);
+  if (!res || !res.success) {
+    body.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--c-danger);padding:24px;">${App.escHtml(res?.message || 'โหลดรายชื่อผู้ใช้ไม่สำเร็จ')}</td></tr>`;
+    return;
+  }
+  users = res.data || [];
+  body.innerHTML = users.map(user => `
+    <tr>
+      <td>${App.escHtml(user.username || '-')}</td>
+      <td>${App.escHtml(user.displayName || '-')}</td>
+      <td>${App.escHtml(user.role || '-')}</td>
+      <td>${App.escHtml(user.department || '-')}</td>
+    </tr>`).join('');
+  renderStats();
+}
+
+function renderStats() {
+  const counts = {
+    total: users.length,
+    manager: users.filter(u => u.role === 'manager').length,
+    deptHead: users.filter(u => u.role === 'dept_head').length,
+    officer: users.filter(u => u.role === 'officer').length
+  };
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-box"><div class="label">ผู้ใช้ทั้งหมด</div><div class="value">${App.formatNum(counts.total)}</div></div>
+    <div class="stat-box"><div class="label">ผู้จัดการ</div><div class="value">${App.formatNum(counts.manager)}</div></div>
+    <div class="stat-box"><div class="label">หัวหน้าฝ่าย</div><div class="value">${App.formatNum(counts.deptHead)}</div></div>
+    <div class="stat-box"><div class="label">เจ้าหน้าที่</div><div class="value">${App.formatNum(counts.officer)}</div></div>`;
+}
+
+async function loadLogs() {
+  const wrap = document.getElementById('log-list');
+  wrap.innerHTML = '<div style="color:var(--c-text-muted);">กำลังโหลด log...</div>';
+  const res = await API.call('getRecentLogsForAdmin', 25).catch(() => null);
+  if (!res || !res.success) {
+    wrap.innerHTML = `<div style="color:var(--c-danger);">${App.escHtml(res?.message || 'โหลด log ไม่สำเร็จ')}</div>`;
+    return;
+  }
+  const items = res.data || [];
+  if (!items.length) {
+    wrap.innerHTML = '<div style="color:var(--c-text-muted);">ยังไม่มีข้อมูล log</div>';
+    return;
+  }
+  wrap.innerHTML = items.map(item => `
+    <div class="log-item">
+      <div style="font-weight:700;">${App.escHtml(item.action || '-')}</div>
+      <div style="font-size:0.85rem;line-height:1.45;margin-top:4px;">${App.escHtml(item.user || '-')} • ${App.escHtml(item.detail || '-')}</div>
+      <div class="text-xs" style="color:var(--c-text-muted);margin-top:6px;">${App.escHtml(new Date(item.time).toLocaleString('th-TH'))}</div>
+    </div>`).join('');
+}
+
+async function createUser() {
+  const btn = document.getElementById('create-user-btn');
+  const payload = {
+    username: document.getElementById('new-username').value.trim(),
+    displayName: document.getElementById('new-display').value.trim(),
+    password: document.getElementById('new-password').value,
+    role: document.getElementById('new-role').value,
+    department: document.getElementById('new-dept').value
+  };
+  if (!Validate.username(payload.username)) return Swal2.error('ข้อมูลไม่ถูกต้อง', 'Username ต้องเป็นตัวอักษร/ตัวเลข/จุด 3-30 ตัว');
+  if (!Validate.password(payload.password)) return Swal2.error('ข้อมูลไม่ถูกต้อง', 'Password ต้องมีอย่างน้อย 8 ตัวอักษร');
+  if (!payload.displayName) return Swal2.error('ข้อมูลไม่ครบ', 'กรุณากรอกชื่อแสดง');
+  App.setLoading(btn, true);
+  const res = await API.call('createUserByAdmin', payload).catch(() => null);
+  App.setLoading(btn, false);
+  if (!res || !res.success) return Swal2.error('สร้างผู้ใช้ไม่สำเร็จ', res?.message || 'กรุณาลองใหม่');
+  Swal2.toast(res.message || 'สร้างผู้ใช้สำเร็จ');
+  document.getElementById('new-username').value = '';
+  document.getElementById('new-display').value = '';
+  document.getElementById('new-password').value = '';
+  await Promise.all([loadUsers(), loadLogs()]);
+}
+
+async function updateInboxBadge() {
+  const res = await API.call('getMyPendingCount').catch(() => null);
+  if (!res || !res.success) return;
+  const badge = document.getElementById('nav-inbox-count');
+  const count = Number((res.data && res.data.count) || 0);
+  badge.style.display = count > 0 ? 'inline-block' : 'none';
+  badge.textContent = count;
+}
+
+function roleLabel(role) { return ({ officer: 'เจ้าหน้าที่', dept_head: 'หัวหน้าฝ่าย', asst_manager: 'ผู้ช่วยผู้จัดการ', manager: 'ผู้จัดการ' })[role] || role; }
+function handleLogout() {
+  Swal2.confirm('ออกจากระบบ?', 'คุณต้องการออกจากระบบใช่หรือไม่', 'ออกจากระบบ').then(async result => {
+    if (!result.isConfirmed) return;
+    await API.logout().catch(() => null);
+    Nav.go('login');
+  });
+}
+</script>
+</body>
+</html>

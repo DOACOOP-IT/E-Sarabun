@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>แฟ้มจัดเก็บดิจิทัล — E-Sarabun</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <?!= include('Stylesheet') ?>
+  <style>
+    .layout-grid { display:grid; grid-template-columns:280px 1fr; gap:20px; }
+    .chip-list { display:flex; flex-wrap:wrap; gap:8px; }
+    .year-chip { padding:6px 12px; border-radius:999px; border:1.5px solid var(--c-border); background:var(--c-bg-card); cursor:pointer; font-weight:700; }
+    .year-chip.active { background:var(--c-primary); color:#fff; border-color:var(--c-primary); }
+    .month-block { background:var(--c-bg-card); border-radius:var(--r-lg); padding:12px 14px; box-shadow:var(--shadow-card); margin-bottom:10px; }
+    .day-row { display:flex; justify-content:space-between; gap:8px; font-size:0.84rem; padding:4px 0; color:var(--c-text-secondary); }
+    .toolbar { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:20px; }
+    @media (max-width: 992px) { #hamburger { display:flex !important; } .layout-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div id="sidebar-overlay" onclick="App.toggleSidebar()"></div>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header"><div class="sidebar-logo">ส</div><div><div class="sidebar-title">E-Sarabun</div><div class="sidebar-subtitle">ระบบสารบรรณ</div></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">เมนูหลัก</div>
+      <a class="nav-item" data-page="dashboard" onclick="Nav.go('dashboard')">หน้าหลัก</a>
+      <a class="nav-item" data-page="inbox" onclick="Nav.go('inbox')">กล่องงานค้าง<span class="nav-badge" id="nav-inbox-count" style="display:none">0</span></a>
+      <div class="nav-section-label" style="margin-top:8px">เอกสาร</div>
+      <a class="nav-item" data-page="doc-internal" onclick="Nav.go('doc-internal')">เอกสารภายใน</a>
+      <a class="nav-item" data-page="doc-external" onclick="Nav.go('doc-external')">เอกสารภายนอก</a>
+      <a class="nav-item active" data-page="archive" onclick="Nav.go('archive')">แฟ้มจัดเก็บ</a>
+      <div id="nav-admin" style="display:none"><div class="nav-section-label" style="margin-top:8px">ผู้ดูแลระบบ</div><a class="nav-item" data-page="admin" onclick="Nav.go('admin')">จัดการระบบ</a></div>
+    </nav>
+    <div class="sidebar-footer"><div class="sidebar-user"><div class="sidebar-user-avatar" id="sidebar-avatar">-</div><div style="flex:1;min-width:0;"><div class="sidebar-user-name" id="sidebar-name">กำลังโหลด...</div><div class="sidebar-user-role" id="sidebar-role"></div></div><button onclick="handleLogout()" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.55);padding:4px;">ออก</button></div></div>
+  </aside>
+  <main class="main-content">
+    <header class="topbar"><div style="display:flex;align-items:center;gap:12px;"><button id="hamburger" onclick="App.toggleSidebar()" style="display:none;background:none;border:none;cursor:pointer;padding:4px;">☰</button><span class="topbar-title">แฟ้มจัดเก็บดิจิทัล</span></div><div class="topbar-actions"><button class="notif-btn" onclick="NotifManager.toggle()" title="การแจ้งเตือน"><span class="notif-dot" id="notif-dot" style="display:none"></span>🔔</button></div></header>
+    <div class="notif-panel" id="notif-panel"><div class="notif-header"><span class="notif-header-title">การแจ้งเตือน</span><button class="btn btn-sm btn-ghost" onclick="NotifManager.readAll()">อ่านทั้งหมด</button></div><div class="notif-list"></div></div>
+    <div class="page-body">
+      <div style="margin-bottom:20px;"><div class="text-heading">ค้นหาไฟล์ใน Archive</div><div style="color:var(--c-text-muted);font-size:0.9rem;margin-top:4px;">เลือกประเภทและวันที่เพื่อเปิดดูไฟล์ที่จัดเก็บไว้ใน Google Drive</div></div>
+
+      <div class="toolbar">
+        <select class="form-control" id="doc-type" onchange="loadArchive()">
+          <option value="internal">เอกสารภายใน</option>
+          <option value="external">เอกสารภายนอก</option>
+        </select>
+        <input class="form-control" type="date" id="archive-date" onchange="loadArchive()">
+        <button class="btn btn-ghost" onclick="loadArchive()">รีเฟรช</button>
+      </div>
+
+      <div class="layout-grid">
+        <div>
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><div style="font-weight:700;">ปีที่มีข้อมูล</div></div>
+            <div class="card-body"><div class="chip-list" id="year-list"></div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div style="font-weight:700;">โครงสร้างเดือน</div></div>
+            <div class="card-body" id="month-structure"><div style="color:var(--c-text-muted);">กำลังโหลด...</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div><div style="font-weight:700;">ไฟล์ในโฟลเดอร์ที่เลือก</div><div class="text-xs" style="color:var(--c-text-muted);margin-top:4px;" id="archive-path-label"></div></div></div>
+          <div class="card-body" style="padding:0;">
+            <div class="table-wrapper" style="box-shadow:none;border-radius:0;">
+              <table class="table">
+                <thead><tr><th>ชื่อไฟล์</th><th>ประเภท</th><th>ขนาด</th><th>สร้างเมื่อ</th><th></th></tr></thead>
+                <tbody id="archive-body"><tr><td colspan="5" style="text-align:center;color:var(--c-text-muted);padding:24px;">กำลังโหลดข้อมูล...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<?!= include('JavaScript') ?>
+<script>
+let currentSession = null;
+let selectedYear = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('archive-date').value = new Date().toISOString().slice(0, 10);
+  await bootPage();
+  await loadYears();
+  await loadArchive();
+});
+
+async function bootPage() {
+  currentSession = await API.getSession().catch(() => null);
+  if (!currentSession) { Nav.go('login'); return; }
+  await Nav.init();
+  App.setActiveNav('archive');
+  if (['manager', 'asst_manager'].includes(currentSession.role)) document.getElementById('nav-admin').style.display = 'block';
+  document.getElementById('sidebar-avatar').textContent = (currentSession.displayName || currentSession.username || '-').charAt(0);
+  document.getElementById('sidebar-name').textContent = currentSession.displayName || currentSession.username;
+  document.getElementById('sidebar-role').textContent = roleLabel(currentSession.role) + ' • ' + (currentSession.department || '-');
+  NotifManager.init('notif-panel', 'notif-dot');
+  updateInboxBadge();
+}
+
+async function loadYears() {
+  const res = await API.call('listArchiveYears').catch(() => null);
+  const years = res && res.success ? (res.data || []) : [];
+  selectedYear = selectedYear || years[0] || toBuddhistYear(new Date());
+  renderYears(years);
+}
+
+function renderYears(years) {
+  const wrap = document.getElementById('year-list');
+  if (!years.length) {
+    wrap.innerHTML = '<span style="color:var(--c-text-muted);">ยังไม่พบโฟลเดอร์ปีใน Archive</span>';
+    return;
+  }
+  wrap.innerHTML = years.map(year => `<button class="year-chip ${year === selectedYear ? 'active' : ''}" onclick="setYear(${year})">${year}</button>`).join('');
+}
+
+async function setYear(year) {
+  selectedYear = year;
+  renderYears((await API.call('listArchiveYears').catch(() => ({ success: false })))?.data || []);
+  await loadStructure();
+}
+
+async function loadStructure() {
+  const docType = document.getElementById('doc-type').value;
+  const wrap = document.getElementById('month-structure');
+  wrap.innerHTML = '<div style="color:var(--c-text-muted);">กำลังโหลด...</div>';
+  const res = await API.call('listArchiveMonths', selectedYear, docType).catch(() => null);
+  if (!res || !res.success) {
+    wrap.innerHTML = `<div style="color:var(--c-danger);">${App.escHtml(res?.message || 'โหลดโครงสร้างไม่สำเร็จ')}</div>`;
+    return;
+  }
+  const months = res.data || [];
+  if (!months.length) {
+    wrap.innerHTML = '<div style="color:var(--c-text-muted);">ยังไม่มีไฟล์ในปีและประเภทที่เลือก</div>';
+    return;
+  }
+  wrap.innerHTML = months.map(month => `
+    <div class="month-block">
+      <div style="font-weight:700;margin-bottom:6px;">${App.escHtml(month.month)}</div>
+      ${month.days.map(day => `<div class="day-row"><span>วันที่ ${App.escHtml(day.day)}</span><strong>${App.formatNum(day.count)} ไฟล์</strong></div>`).join('')}
+    </div>`).join('');
+}
+
+async function loadArchive() {
+  await loadStructure();
+  const body = document.getElementById('archive-body');
+  body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--c-text-muted);padding:24px;">กำลังโหลดข้อมูล...</td></tr>';
+  const docType = document.getElementById('doc-type').value;
+  const date = document.getElementById('archive-date').value;
+  document.getElementById('archive-path-label').textContent = `${docType === 'internal' ? 'เอกสารภายใน' : 'เอกสารภายนอก'} • ${date || '-'}`;
+  const res = await API.call('listArchiveFiles', { docType, date }).catch(() => null);
+  if (!res || !res.success) {
+    body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--c-danger);padding:24px;">${App.escHtml(res?.message || 'โหลดรายการไฟล์ไม่สำเร็จ')}</td></tr>`;
+    return;
+  }
+  const files = res.data || [];
+  if (!files.length) {
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--c-text-muted);padding:24px;">ไม่พบไฟล์ในโฟลเดอร์ที่เลือก</td></tr>';
+    return;
+  }
+  body.innerHTML = files.map(file => `
+    <tr>
+      <td><div style="font-weight:700;">${App.escHtml(file.name || '-')}</div></td>
+      <td>${App.escHtml(file.mimeType || '-')}</td>
+      <td>${App.escHtml(file.sizeLabel || '-')}</td>
+      <td>${App.escHtml(file.createdAtTH || '-')}</td>
+      <td><div style="display:flex;gap:8px;"><a class="btn btn-sm btn-primary" href="${App.escHtml(file.previewUrl)}" target="_blank" rel="noopener noreferrer">ดู</a><a class="btn btn-sm btn-ghost" href="${App.escHtml(file.downloadUrl)}" target="_blank" rel="noopener noreferrer">ดาวน์โหลด</a></div></td>
+    </tr>`).join('');
+}
+
+async function updateInboxBadge() {
+  const res = await API.call('getMyPendingCount').catch(() => null);
+  if (!res || !res.success) return;
+  const badge = document.getElementById('nav-inbox-count');
+  const count = Number((res.data && res.data.count) || 0);
+  badge.style.display = count > 0 ? 'inline-block' : 'none';
+  badge.textContent = count;
+}
+
+function toBuddhistYear(date) { return date.getFullYear() + 543; }
+function roleLabel(role) { return ({ officer: 'เจ้าหน้าที่', dept_head: 'หัวหน้าฝ่าย', asst_manager: 'ผู้ช่วยผู้จัดการ', manager: 'ผู้จัดการ' })[role] || role; }
+function handleLogout() {
+  Swal2.confirm('ออกจากระบบ?', 'คุณต้องการออกจากระบบใช่หรือไม่', 'ออกจากระบบ').then(async result => {
+    if (!result.isConfirmed) return;
+    await API.logout().catch(() => null);
+    Nav.go('login');
+  });
+}
+</script>
+</body>
+</html>

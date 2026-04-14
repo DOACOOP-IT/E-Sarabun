@@ -327,8 +327,8 @@
       if (!username) {
         showFieldError(uEl, uErr, 'กรุณากรอกชื่อผู้ใช้');
         valid = false;
-      } else if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
-        showFieldError(uEl, uErr, 'Username ต้องเป็นตัวอักษร/ตัวเลข 3-30 ตัว');
+      } else if (!/^[a-zA-Z0-9_.]{3,30}$/.test(username)) {
+        showFieldError(uEl, uErr, 'Username ต้องเป็นตัวอักษร/ตัวเลข/จุด 3-30 ตัว');
         valid = false;
       } else {
         clearFieldError(uEl, uErr);

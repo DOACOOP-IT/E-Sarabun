@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เอกสารภายนอก — E-Sarabun</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <?!= include('Stylesheet') ?>
+  <style>
+    .toolbar, .filters { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .toolbar { justify-content:space-between; margin-bottom:20px; }
+    .filters { margin-bottom:20px; }
+    .filters .form-control { min-width: 170px; }
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:20px; }
+    .mini-kpi { background:var(--c-bg-card); border-radius:var(--r-xl); padding:16px 18px; box-shadow:var(--shadow-card); }
+    .mini-kpi-label { font-size:0.78rem; color:var(--c-text-muted); }
+    .mini-kpi-value { font-size:1.6rem; font-weight:800; color:var(--c-info); line-height:1.1; margin-top:4px; }
+    .table-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .page-subtitle { color:var(--c-text-muted); font-size:0.9rem; margin-top:4px; }
+    @media (max-width: 992px) { #hamburger { display:flex !important; } }
+  </style>
+</head>
+<body>
+<div id="sidebar-overlay" onclick="App.toggleSidebar()"></div>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header"><div class="sidebar-logo">ส</div><div><div class="sidebar-title">E-Sarabun</div><div class="sidebar-subtitle">ระบบสารบรรณ</div></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">เมนูหลัก</div>
+      <a class="nav-item" data-page="dashboard" onclick="Nav.go('dashboard')">หน้าหลัก</a>
+      <a class="nav-item" data-page="inbox" onclick="Nav.go('inbox')">กล่องงานค้าง<span class="nav-badge" id="nav-inbox-count" style="display:none">0</span></a>
+      <div class="nav-section-label" style="margin-top:8px">เอกสาร</div>
+      <a class="nav-item" data-page="doc-internal" onclick="Nav.go('doc-internal')">เอกสารภายใน</a>
+      <a class="nav-item active" data-page="doc-external" onclick="Nav.go('doc-external')">เอกสารภายนอก</a>
+      <a class="nav-item" data-page="archive" onclick="Nav.go('archive')">แฟ้มจัดเก็บ</a>
+      <div id="nav-admin" style="display:none"><div class="nav-section-label" style="margin-top:8px">ผู้ดูแลระบบ</div><a class="nav-item" data-page="admin" onclick="Nav.go('admin')">จัดการระบบ</a></div>
+    </nav>
+    <div class="sidebar-footer"><div class="sidebar-user"><div class="sidebar-user-avatar" id="sidebar-avatar">-</div><div style="flex:1;min-width:0;"><div class="sidebar-user-name" id="sidebar-name">กำลังโหลด...</div><div class="sidebar-user-role" id="sidebar-role"></div></div><button onclick="handleLogout()" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.55);padding:4px;">ออก</button></div></div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;"><button id="hamburger" onclick="App.toggleSidebar()" style="display:none;background:none;border:none;cursor:pointer;padding:4px;">☰</button><span class="topbar-title">เอกสารภายนอก</span></div>
+      <div class="topbar-actions"><button class="notif-btn" onclick="NotifManager.toggle()" title="การแจ้งเตือน"><span class="notif-dot" id="notif-dot" style="display:none"></span>🔔</button></div>
+    </header>
+    <div class="notif-panel" id="notif-panel"><div class="notif-header"><span class="notif-header-title">การแจ้งเตือน</span><button class="btn btn-sm btn-ghost" onclick="NotifManager.readAll()">อ่านทั้งหมด</button></div><div class="notif-list"></div></div>
+
+    <div class="page-body">
+      <div style="margin-bottom:20px;"><div class="text-heading">รายการเอกสารภายนอก</div><div class="page-subtitle">ติดตามเอกสารภายนอกที่ลงรับแล้ว พร้อมเปิดดูไฟล์และสถานะ workflow</div></div>
+      <div class="toolbar">
+        <div class="filters">
+          <input class="form-control" id="search-input" placeholder="ค้นหาเลขที่/เรื่อง/ผู้ส่ง" oninput="applyFilters()">
+          <select class="form-control" id="status-filter" onchange="applyFilters()">
+            <option value="">ทุกสถานะ</option>
+            <option value="pending">รอดำเนินการ</option>
+            <option value="in_progress">กำลังดำเนินการ</option>
+            <option value="completed">เสร็จสิ้น</option>
+            <option value="rejected">ถูกปฏิเสธ</option>
+          </select>
+          <input class="form-control" id="year-filter" placeholder="ปี พ.ศ. เช่น 2569" oninput="applyFilters()">
+        </div>
+        <div class="toolbar"><button class="btn btn-ghost" onclick="loadDocs()">รีเฟรช</button><button class="btn btn-primary" id="receive-external-btn" onclick="Nav.go('receive-external')" style="display:none;">ลงรับเอกสารภายนอก</button></div>
+      </div>
+      <div class="kpi-grid" id="kpi-grid"></div>
+      <div class="table-wrapper">
+        <table class="table">
+          <thead><tr><th>เลขที่</th><th>เรื่อง</th><th>ผู้ส่ง</th><th>สถานะ</th><th>วันที่</th><th></th></tr></thead>
+          <tbody id="doc-body"><tr><td colspan="6" style="text-align:center;color:var(--c-text-muted);padding:24px;">กำลังโหลดข้อมูล...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+<?!= include('JavaScript') ?>
+<script>
+let currentSession = null;
+let allDocs = [];
+let filteredDocs = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await bootPage();
+  await loadDocs();
+});
+
+async function bootPage() {
+  currentSession = await API.getSession().catch(() => null);
+  if (!currentSession) { Nav.go('login'); return; }
+  await Nav.init();
+  App.setActiveNav('doc-external');
+  if (['manager', 'asst_manager'].includes(currentSession.role)) document.getElementById('nav-admin').style.display = 'block';
+  document.getElementById('sidebar-avatar').textContent = (currentSession.displayName || currentSession.username || '-').charAt(0);
+  document.getElementById('sidebar-name').textContent = currentSession.displayName || currentSession.username;
+  document.getElementById('sidebar-role').textContent = roleLabel(currentSession.role) + ' • ' + (currentSession.department || '-');
+  if (canReceiveExternal(currentSession)) {
+    document.getElementById('receive-external-btn').style.display = 'inline-flex';
+  }
+  NotifManager.init('notif-panel', 'notif-dot');
+  updateInboxBadge();
+}
+
+async function loadDocs() {
+  const body = document.getElementById('doc-body');
+  body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--c-text-muted);padding:24px;">กำลังโหลดข้อมูล...</td></tr>';
+  const res = await API.getDocs({ docType: 'external' }).catch(() => null);
+  if (!res || !res.success) {
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--c-danger);padding:24px;">${App.escHtml(res?.message || 'โหลดข้อมูลไม่สำเร็จ')}</td></tr>`;
+    return;
+  }
+  allDocs = res.data || [];
+  applyFilters();
+}
+
+function applyFilters() {
+  const search = (document.getElementById('search-input').value || '').trim().toLowerCase();
+  const status = document.getElementById('status-filter').value;
+  const year = (document.getElementById('year-filter').value || '').trim();
+  filteredDocs = allDocs.filter(doc => {
+    const haystack = [doc.docNo, doc.subject, doc.createdBy, doc.sender, doc.receiver].join(' ').toLowerCase();
+    if (search && !haystack.includes(search)) return false;
+    if (status && doc.status !== status) return false;
+    if (year && !String(doc.dateTH || '').includes(year) && !String(doc.docNo || '').includes(year)) return false;
+    return true;
+  });
+  renderKpis(filteredDocs);
+  renderTable(filteredDocs);
+}
+
+function renderKpis(items) {
+  const stats = {
+    total: items.length,
+    pending: items.filter(i => i.status === 'pending').length,
+    progress: items.filter(i => i.status === 'in_progress').length,
+    completed: items.filter(i => i.status === 'completed').length
+  };
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="mini-kpi"><div class="mini-kpi-label">เอกสารทั้งหมด</div><div class="mini-kpi-value">${App.formatNum(stats.total)}</div></div>
+    <div class="mini-kpi"><div class="mini-kpi-label">รอดำเนินการ</div><div class="mini-kpi-value">${App.formatNum(stats.pending)}</div></div>
+    <div class="mini-kpi"><div class="mini-kpi-label">กำลังดำเนินการ</div><div class="mini-kpi-value">${App.formatNum(stats.progress)}</div></div>
+    <div class="mini-kpi"><div class="mini-kpi-label">เสร็จสิ้น</div><div class="mini-kpi-value">${App.formatNum(stats.completed)}</div></div>`;
+}
+
+function renderTable(items) {
+  const body = document.getElementById('doc-body');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--c-text-muted);padding:24px;">ไม่พบเอกสารตามเงื่อนไขที่เลือก</td></tr>';
+    return;
+  }
+  body.innerHTML = items.map(doc => `
+    <tr>
+      <td>${App.escHtml(doc.docNo || '-')}</td>
+      <td><div style="font-weight:700;">${App.escHtml(App.truncate(doc.subject, 90))}</div><div class="text-xs" style="color:var(--c-text-muted);">ถึง ${App.escHtml(doc.receiver || '-')}</div></td>
+      <td>${App.escHtml(doc.sender || '-')}</td>
+      <td>${App.statusBadge(doc.status)}</td>
+      <td>${App.escHtml(doc.dateTH || '-')}</td>
+      <td><div class="table-actions"><button class="btn btn-sm btn-ghost" onclick="showDoc('${doc.id}')">ดู</button>${doc.fileId ? `<button class="btn btn-sm btn-primary" onclick="openFile(event, '${doc.fileId}')">ไฟล์</button>` : ''}</div></td>
+    </tr>`).join('');
+}
+
+async function showDoc(docId) {
+  const res = await API.getDoc(docId).catch(() => null);
+  if (!res || !res.success) return Swal2.error('โหลดรายละเอียดไม่สำเร็จ', res?.message || 'กรุณาลองใหม่');
+  const doc = res.data;
+  let fileUrl = '';
+  if (doc.fileId) {
+    const fileRes = await API.call('getDocumentFileUrl', doc.fileId).catch(() => null);
+    fileUrl = fileRes && fileRes.success ? fileRes.data : '';
+  }
+  Swal.fire({
+    title: App.escHtml(doc.docNo || 'รายละเอียดเอกสาร'),
+    html: `
+      <div style="text-align:left;display:grid;gap:10px;font-size:0.92rem;">
+        <div><strong>เรื่อง:</strong> ${App.escHtml(doc.subject || '-')}</div>
+        <div><strong>ผู้ส่ง:</strong> ${App.escHtml(doc.sender || '-')}</div>
+        <div><strong>ผู้รับ:</strong> ${App.escHtml(doc.receiver || '-')}</div>
+        <div><strong>สถานะ:</strong> ${App.statusBadge(doc.status)}</div>
+        <div><strong>วันที่:</strong> ${App.escHtml(doc.dateTH || '-')}</div>
+        <div><strong>ผู้ลงรับ:</strong> ${App.escHtml(doc.createdBy || '-')}</div>
+        ${fileUrl ? `<div><a href="${App.escHtml(fileUrl)}" target="_blank" rel="noopener noreferrer">เปิดไฟล์เอกสาร</a></div>` : ''}
+      </div>`,
+    confirmButtonText: 'ปิด',
+    confirmButtonColor: '#2563eb'
+  });
+}
+
+async function openFile(event, fileId) {
+  event.stopPropagation();
+  const res = await API.call('getDocumentFileUrl', fileId).catch(() => null);
+  if (!res || !res.success || !res.data) return Swal2.error('ไม่สามารถเปิดไฟล์ได้', res?.message || 'กรุณาลองใหม่');
+  window.open(res.data, '_blank', 'noopener');
+}
+
+async function updateInboxBadge() {
+  const res = await API.call('getMyPendingCount').catch(() => null);
+  if (!res || !res.success) return;
+  const badge = document.getElementById('nav-inbox-count');
+  const count = Number((res.data && res.data.count) || 0);
+  badge.style.display = count > 0 ? 'inline-block' : 'none';
+  badge.textContent = count;
+}
+
+function roleLabel(role) {
+  return ({ officer: 'เจ้าหน้าที่', dept_head: 'หัวหน้าฝ่าย', asst_manager: 'ผู้ช่วยผู้จัดการ', manager: 'ผู้จัดการ' })[role] || role;
+}
+
+function canReceiveExternal(session) {
+  return !!session && session.role === 'officer' && session.department === 'ฝอก.';
+}
+
+function handleLogout() {
+  Swal2.confirm('ออกจากระบบ?', 'คุณต้องการออกจากระบบใช่หรือไม่', 'ออกจากระบบ').then(async result => {
+    if (!result.isConfirmed) return;
+    await API.logout().catch(() => null);
+    Nav.go('login');
+  });
+}
+</script>
+</body>
+</html>

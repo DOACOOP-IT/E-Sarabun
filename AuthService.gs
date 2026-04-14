@@ -210,9 +210,24 @@ const AuthService = {
         return Utils.error('ไม่มีสิทธิ์สร้างผู้ใช้');
       }
 
+      const normalizedUsername = String(userData.username || '').trim().toLowerCase();
+      const uv = Utils.validateUsername(normalizedUsername);
+      if (!uv.valid) return Utils.error(uv.message);
+
+      const pv = Utils.validatePassword(userData.password || '');
+      if (!pv.valid) return Utils.error(pv.message);
+
+      if (!Object.values(CONFIG.ROLES).includes(userData.role)) {
+        return Utils.error('Role ไม่ถูกต้อง');
+      }
+
+      if (!CONFIG.DEPARTMENTS.includes(userData.department)) {
+        return Utils.error('Department ไม่ถูกต้อง');
+      }
+
       // ตรวจซ้ำ
-      const existing = DbService.findOne(CONFIG.SHEETS.USERS, 'username', userData.username);
-      if (existing) return Utils.error(`Username "${userData.username}" มีอยู่แล้วในระบบ`);
+      const existing = DbService.findOne(CONFIG.SHEETS.USERS, 'username', normalizedUsername);
+      if (existing) return Utils.error(`Username "${normalizedUsername}" มีอยู่แล้วในระบบ`);
 
       // Hash password
       const salt     = Utils.generateSalt();
@@ -220,17 +235,17 @@ const AuthService = {
       const pwHash   = `${salt}:${hash}`;
 
       DbService.insert(CONFIG.SHEETS.USERS, {
-        username:      userData.username.trim().toLowerCase(),
+        username:      normalizedUsername,
         password_hash: pwHash,
         role:          userData.role,
         department:    userData.department,
-        displayName:   userData.displayName || userData.username,
+        displayName:   String(userData.displayName || normalizedUsername).trim(),
         createdAt:     Utils.now(),
         createdBy:     session.username
       });
 
-      LogService.write(session.username, 'CREATE_USER', '', `User: ${userData.username}`);
-      return Utils.success(null, `สร้างผู้ใช้ "${userData.username}" สำเร็จ`);
+      LogService.write(session.username, 'CREATE_USER', '', `User: ${normalizedUsername}`);
+      return Utils.success(null, `สร้างผู้ใช้ "${normalizedUsername}" สำเร็จ`);
 
     } catch (e) {
       return Utils.error('เกิดข้อผิดพลาด: ' + e.message);
@@ -278,8 +293,8 @@ const AuthService = {
    */
   getAllUsers() {
     try {
-      this.requireAuth();
-      if (!this.hasRole(CONFIG.ROLES.ASST_MANAGER)) {
+      const session = this.requireAuth();
+      if (!PermissionService.canAccessAdmin(session)) {
         return Utils.error('ไม่มีสิทธิ์ดูรายชื่อผู้ใช้');
       }
       const users = DbService.getAll(CONFIG.SHEETS.USERS).map(u => ({

@@ -121,7 +121,7 @@ const Validate = {
 
   /** ตรวจ username */
   username(value) {
-    return /^[a-zA-Z0-9_]{3,30}$/.test(value);
+    return /^[a-zA-Z0-9_.]{3,30}$/.test(value);
   },
 
   /** ตรวจ password */
@@ -296,12 +296,12 @@ const Nav = {
 // ─── Notification Manager ─────────────────────────────────────
 const NotifManager = {
   _panel: null,
-  _badge: null,
+  _dot:   null,
   _count: 0,
 
   init(panelId, badgeId) {
     this._panel = document.getElementById(panelId);
-    this._badge = document.getElementById(badgeId);
+    this._dot   = document.getElementById(badgeId);
     this.refresh();
     // Refresh ทุก 60 วินาที
     setInterval(() => this.refresh(), 60000);
@@ -317,9 +317,14 @@ const NotifManager = {
   },
 
   _updateBadge() {
-    if (!this._badge) return;
-    this._badge.style.display = this._count > 0 ? 'block' : 'none';
-    this._badge.textContent   = this._count > 9 ? '9+' : this._count;
+    if (!this._dot) return;
+    if (this._count > 0) {
+      this._dot.style.display  = 'flex';
+      this._dot.textContent    = this._count > 99 ? '99+' : String(this._count);
+    } else {
+      this._dot.style.display  = 'none';
+      this._dot.textContent    = '';
+    }
   },
 
   _renderItems(items) {

@@ -89,6 +89,40 @@
     }
     .notif-header-title { font-weight: 700; font-size: 1rem; }
 
+    /* Hero stat cards — 3 ตัวสำคัญสุด */
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 640px) { .hero-stats { grid-template-columns: 1fr; } }
+    .hero-card {
+      border-radius: var(--r-xl); padding: 20px 24px;
+      display: flex; align-items: center; gap: 16px;
+      cursor: pointer; transition: all var(--tr-slow);
+      box-shadow: var(--shadow-card);
+      position: relative; overflow: hidden;
+    }
+    .hero-card::after {
+      content: ''; position: absolute; right: -20px; bottom: -20px;
+      width: 80px; height: 80px; border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+    }
+    .hero-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+    .hero-card-blue  { background: linear-gradient(135deg, #1e3a8a, #2563eb); }
+    .hero-card-amber { background: linear-gradient(135deg, #92400e, #d97706); }
+    .hero-card-green { background: linear-gradient(135deg, #064e3b, #059669); }
+    .hero-card-icon {
+      font-size: 2rem; flex-shrink: 0;
+      width: 52px; height: 52px;
+      background: rgba(255,255,255,0.18); border-radius: var(--r-md);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .hero-card-label { font-size: 0.8rem; color: rgba(255,255,255,0.72); font-weight: 500; }
+    .hero-card-value { font-size: 2rem; font-weight: 800; color: #fff; line-height: 1.1; }
+    .hero-card-sub   { font-size: 0.72rem; color: rgba(255,255,255,0.6); margin-top: 2px; }
+
     /* Skeleton loaders */
     .skeleton-line {
       height: 16px; border-radius: 8px; margin-bottom: 8px;
@@ -254,6 +288,37 @@
         <div class="welcome-name" id="welcome-name">กำลังโหลด...</div>
         <div class="welcome-dept" id="welcome-dept"></div>
         <div class="welcome-date" id="welcome-date"></div>
+      </div>
+
+      <!-- Hero Stats — 3 ตัวสำคัญ -->
+      <div class="hero-stats" id="hero-stats">
+        <!-- งานรอฉัน -->
+        <div class="hero-card hero-card-blue" onclick="Nav.go('approve')">
+          <div class="hero-card-icon">✍️</div>
+          <div>
+            <div class="hero-card-label">งานที่รอฉันดำเนินการ</div>
+            <div class="hero-card-value" id="hero-pending-me">-</div>
+            <div class="hero-card-sub">คลิกเพื่อดำเนินการ</div>
+          </div>
+        </div>
+        <!-- กำลังดำเนินการทั้งหมด -->
+        <div class="hero-card hero-card-amber">
+          <div class="hero-card-icon">🔄</div>
+          <div>
+            <div class="hero-card-label">กำลังรอดำเนินการรวม</div>
+            <div class="hero-card-value" id="hero-in-progress">-</div>
+            <div class="hero-card-sub">อยู่ในขั้นตอน workflow</div>
+          </div>
+        </div>
+        <!-- เสร็จสิ้นเดือนนี้ -->
+        <div class="hero-card hero-card-green">
+          <div class="hero-card-icon">✅</div>
+          <div>
+            <div class="hero-card-label">เสร็จสิ้นเดือนนี้</div>
+            <div class="hero-card-value" id="hero-completed-month">-</div>
+            <div class="hero-card-sub">เสร็จสิ้นทั้งหมด: <span id="hero-completed-total">-</span></div>
+          </div>
+        </div>
       </div>
 
       <!-- Stats Grid -->
@@ -451,10 +516,11 @@
   // ─── Dashboard Data ───────────────────────────────────────────
   async function loadDashboard() {
     try {
-      const res = await API.getDashboard();
+      const res = await API.call('getFullDashboardStats');
       if (!res || !res.success) throw new Error(res?.message || 'โหลดข้อมูลไม่สำเร็จ');
 
       const data = res.data;
+      renderHeroStats(data);
       renderStats(data);
       renderRecentDocs(data.recentDocs || []);
       renderPendingList(data.pendingForMe || []);
@@ -467,15 +533,32 @@
     }
   }
 
+  function renderHeroStats(data) {
+    const pendingMe = data.pendingForMeCount || 0;
+    const inProg    = data.totalInProgress   || 0;
+    const thisMonth = data.completedThisMonth || 0;
+    const total     = data.totalCompleted     || 0;
+
+    document.getElementById('hero-pending-me').textContent      = App.formatNum(pendingMe);
+    document.getElementById('hero-in-progress').textContent     = App.formatNum(inProg);
+    document.getElementById('hero-completed-month').textContent = App.formatNum(thisMonth);
+    document.getElementById('hero-completed-total').textContent = App.formatNum(total);
+
+    // Flash hero card ถ้ามีงานรอฉัน
+    if (pendingMe > 0) {
+      document.querySelector('.hero-card-blue').style.animation = 'heroPulse 2.5s ease 1';
+    }
+  }
+
   function renderStats(data) {
     const grid = document.getElementById('stats-grid');
     const stats = [
-      { value: App.formatNum(data.totalDocs), label: 'เอกสารทั้งหมด',    cls: 'stat-card-blue',   icon: '📄' },
-      { value: App.formatNum(data.pending),   label: 'รอดำเนินการ',      cls: 'stat-card-yellow', icon: '⏳' },
-      { value: App.formatNum(data.inProgress),label: 'กำลังดำเนินการ',   cls: 'stat-card-sky',    icon: '🔄' },
-      { value: App.formatNum(data.completed), label: 'เสร็จสิ้น',        cls: 'stat-card-green',  icon: '✅' },
-      { value: App.formatNum(data.internal),  label: 'เอกสารภายใน',      cls: 'stat-card-indigo', icon: '📝' },
-      { value: App.formatNum(data.external),  label: 'เอกสารภายนอก',     cls: 'stat-card-blue',   icon: '📨' },
+      { value: App.formatNum(data.totalDocs),    label: 'เอกสารทั้งหมด',    cls: 'stat-card-blue',   icon: '📄' },
+      { value: App.formatNum(data.totalPending || data.pending), label: 'รอดำเนินการ',      cls: 'stat-card-yellow', icon: '⏳' },
+      { value: App.formatNum(data.totalInProgress || data.inProgress), label: 'กำลังดำเนินการ',   cls: 'stat-card-sky',    icon: '🔄' },
+      { value: App.formatNum(data.totalCompleted || data.completed), label: 'เสร็จสิ้น',        cls: 'stat-card-green',  icon: '✅' },
+      { value: App.formatNum(data.internal),     label: 'เอกสารภายใน',      cls: 'stat-card-indigo', icon: '📝' },
+      { value: App.formatNum(data.external),     label: 'เอกสารภายนอก',     cls: 'stat-card-blue',   icon: '📨' },
     ];
 
     grid.innerHTML = stats.map(s => `

@@ -10,7 +10,7 @@ const CONFIG = {
 
   // ─── Google Sheets ─────────────────────────────────────────
   /** ID ของ Google Spreadsheet หลัก (แก้ไขก่อน deploy) */
-  SPREADSHEET_ID: 'YOUR_SPREADSHEET_ID_HERE',
+  SPREADSHEET_ID: '1RdG0wMHoFGHOXZsFUYiMNY3zYJ2_TiO47zmaPlGvoFU',
 
   /** ชื่อ Sheet แต่ละตาราง */
   SHEETS: {
@@ -23,7 +23,15 @@ const CONFIG = {
 
   // ─── Google Drive ───────────────────────────────────────────
   /** ID ของโฟลเดอร์ Root ใน Google Drive สำหรับเก็บเอกสาร */
-  DRIVE_ROOT_FOLDER_ID: 'YOUR_ROOT_FOLDER_ID_HERE',
+  DRIVE_ROOT_FOLDER_ID: '1oyoZxnL1xzUuiyMXrvQCAnAbHTG_Y_Zt',
+
+  /**
+   * ID ของโฟลเดอร์ INBOX ใน Google Drive
+   * สำหรับรับไฟล์สแกนเอกสารภายนอกจาก Scanner หรือ Upload โดยตรง
+   * เจ้าหน้าที่ ฝอก. จะ List ไฟล์นี้เพื่อลงรับเอกสาร
+   * (แก้ไขเป็น ID จริงก่อน deploy)
+   */
+  INBOX_FOLDER_ID: '1oyoZxnL1xzUuiyMXrvQCAnAbHTG_Y_Zt',
 
   // ─── Session ────────────────────────────────────────────────
   /** Session timeout (วินาที) — 8 ชั่วโมง */
